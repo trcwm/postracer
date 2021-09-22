@@ -31,6 +31,7 @@ public slots:
 protected:
     void handleBaseData(const std::string &data);
     void handleCollectorData(const std::string &data);
+    void handleDiodeData(const std::string &data);
 
     void createMenus();
     void createActions();
@@ -42,6 +43,7 @@ protected:
     QAction *m_sweepTransistorAction;
     QAction *m_sweepDiodeAction;
 
+    std::atomic_bool m_threadRunning;
     float   m_baseCurrent;
     QPointF m_lastCurvePoint;
     

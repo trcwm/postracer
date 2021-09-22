@@ -14,6 +14,7 @@ find_package(Threads)
 
 set(SRC 
     src/graph.cpp
+    src/serialportdialog.cpp
     src/serialctrl.cpp
     src/mainwindow.cpp
     src/main.cpp)

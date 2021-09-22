@@ -13,8 +13,13 @@ public:
 
     void setBaseCurrent(uint16_t dutyCycle, bool noMeasurement = false);
     void setCollectorVoltage(uint16_t dutyCycle, bool noMeasurement = false);
-
+    void setDiodeVoltage(uint16_t dutyCycle, bool noMeasurement = false);
+    
     void sweepCollector(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step);
+    void sweepDiode(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step);
+
+    bool isOpen() const;
+    void close();
 
 protected:
     SerialCtrl(QSerialPort *port, QObject *eventReceiver) 
@@ -24,3 +29,4 @@ protected:
     std::unique_ptr<QSerialPort> m_port;
     QObject *m_eventReceiver;
 };
+

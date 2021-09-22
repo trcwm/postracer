@@ -12,6 +12,7 @@ public:
         Unknown,
         Base,
         Collector,
+        Diode,
         EndSweep
     };
 

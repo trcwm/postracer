@@ -41,6 +41,24 @@ SerialCtrl::~SerialCtrl()
     }
 }
 
+bool SerialCtrl::isOpen() const
+{
+    if (!m_port)
+    {
+        return false;
+    }
+
+    return m_port->isOpen();
+}
+
+void SerialCtrl::close()
+{
+    if (m_port)
+    {
+        m_port->close();
+    }
+}
+
 void SerialCtrl::setBaseCurrent(uint16_t dutyCycle, bool noMeasurement)
 {
     if (m_port->isOpen())
@@ -52,6 +70,8 @@ void SerialCtrl::setBaseCurrent(uint16_t dutyCycle, bool noMeasurement)
         
         auto response = readLine();
         
+        std::cout << "B response: " << response << "\n";
+
         if (!noMeasurement)
         {
             QApplication::postEvent(m_eventReceiver, new DataEvent(response, DataEvent::DataType::Base));
@@ -73,6 +93,24 @@ void SerialCtrl::setCollectorVoltage(uint16_t dutyCycle, bool noMeasurement)
         if (!noMeasurement)
         {
             QApplication::postEvent(m_eventReceiver, new DataEvent(response, DataEvent::DataType::Collector));
+        }
+    }
+}
+
+void SerialCtrl::setDiodeVoltage(uint16_t dutyCycle, bool noMeasurement)
+{
+    if (m_port->isOpen())
+    {
+        std::stringstream ss;
+        ss << dutyCycle << "C \n";
+        auto data = ss.str();
+        m_port->write(data.c_str(), data.size());
+
+        auto response = readLine();
+
+        if (!noMeasurement)
+        {
+            QApplication::postEvent(m_eventReceiver, new DataEvent(response, DataEvent::DataType::Diode));
         }
     }
 }
@@ -106,6 +144,15 @@ void SerialCtrl::sweepCollector(uint16_t dutyStart, uint16_t dutyEnd, uint16_t s
     for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
     {
         setCollectorVoltage(duty);        
+    }
+    QApplication::postEvent(m_eventReceiver, new DataEvent("", DataEvent::DataType::EndSweep)); // end sweep!
+}
+
+void SerialCtrl::sweepDiode(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step)
+{
+    for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
+    {
+        setDiodeVoltage(duty);
     }
     QApplication::postEvent(m_eventReceiver, new DataEvent("", DataEvent::DataType::EndSweep)); // end sweep!
 }
