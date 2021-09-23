@@ -33,14 +33,24 @@ void Graph::clearData()
     m_dataExtents.clear();
     m_traces.clear();
     m_labels.clear();
+    m_selectedTrace = -1;
 }
 
-void Graph::newTrace()
+size_t Graph::newTrace()
 {
     std::unique_lock<std::mutex>(m_mutex);
     m_traces.emplace_back();
     std::cout << "new trace created\n";
+
+    return m_traces.size();
 }
+
+size_t Graph::getNumberOfTraces() const
+{
+    std::unique_lock<std::mutex>(m_mutex);
+    return m_traces.size();
+}
+
 
 void Graph::addLabel(const QString &txt, const QPointF &p)
 {

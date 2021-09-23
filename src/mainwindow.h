@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <QMainWindow>
+#include <QListWidget>
 #include <QAction>
 
 #include "customevent.h"
@@ -28,6 +29,7 @@ public slots:
     void onQuit();
     void onSave();
     void onPersistanceChanged();
+    void onSelectedTraceChanged();
 
 protected:
     void handleBaseData(const std::string &data);
@@ -52,6 +54,8 @@ protected:
     bool    m_persistance;
 
     Graph *m_graph;
+    QListWidget *m_traceList;
+
     std::unique_ptr<SerialCtrl> m_serial;
     std::thread m_thread;
 };

@@ -1,11 +1,14 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
 #include <QScreen>
 #include <QApplication>
 #include <QMessageBox>
 #include <QMenuBar>
+#include <QVariant>
 #include <QFileDialog>
-#include <iostream>
-#include <fstream>
-#include <sstream>
+#include <QHBoxLayout>
 
 #include "mainwindow.h"
 #include "serialportdialog.h"
@@ -17,10 +20,21 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     createActions();
     createMenus();
 
-    m_graph = new Graph(this);
-    setCentralWidget(m_graph);
+    auto mainWidget = new QWidget();
+    setCentralWidget(mainWidget);
 
+    auto hLayout = new QHBoxLayout();
+    mainWidget->setLayout(hLayout);
+
+    m_traceList = new QListWidget();
+    connect(m_traceList, SIGNAL(itemSelectionChanged()), this, SLOT(onSelectedTraceChanged()) );
+    hLayout->addWidget(m_traceList, 1);
+
+    m_graph = new Graph(this);
     m_graph->selectTrace(0);
+    hLayout->addWidget(m_graph, 5);
+
+    
 }
 
 MainWindow::~MainWindow()
@@ -95,7 +109,14 @@ bool MainWindow::event(QEvent *event)
                 m_lastCurvePoint);            
             break;
         case DataEvent::DataType::StartSweep:
-            m_graph->newTrace();  
+            {
+                size_t numberOfTraces = m_graph->newTrace(); 
+
+                auto item = new QListWidgetItem();
+                item->setData(Qt::DisplayRole, QString::asprintf("Trace %ld", numberOfTraces));
+                item->setData(Qt::UserRole, static_cast<int>(numberOfTraces));
+                m_traceList->addItem(item);
+            }
             break;
         default:
             return false;
@@ -180,6 +201,7 @@ void MainWindow::onSave()
             }
             
             json << "]\n";
+            index++;
         }
 
         json << "}\n";
@@ -250,6 +272,7 @@ void MainWindow::onSweepDiode()
     if (!m_persistance)
     {
         m_graph->clearData();
+        m_traceList->clear();
     }
 
     if (m_serial)
@@ -278,6 +301,7 @@ void MainWindow::onSweepTransistor()
     if (!m_persistance)
     {
         m_graph->clearData();
+        m_traceList->clear();
     }
 
     if (m_serial)
@@ -300,5 +324,16 @@ void MainWindow::onSweepTransistor()
             }
         );
         m_thread.detach();
+    }
+}
+
+void MainWindow::onSelectedTraceChanged()
+{
+    auto item = m_traceList->currentItem();
+    if (item != nullptr)
+    {
+        QVariant userData = item->data(Qt::UserRole);
+        int32_t traceIndex = userData.toInt() - 1;
+        m_graph->selectTrace(traceIndex);
     }
 }

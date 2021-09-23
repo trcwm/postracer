@@ -11,7 +11,9 @@ public:
     Graph(QWidget *parent = 0);
 
     void clearData();
-    void newTrace();
+    
+    /** creates a new trace and return the total number of traces */
+    size_t newTrace();
 
     void addDataPoint(const QPointF &p);
     void addLabel(const QString &txt, const QPointF &p);
@@ -27,11 +29,10 @@ public:
         update();
     }
 
-    size_t getNumberOfTraces() const
-    {
-        return m_traces.size();
-    }
+    /** get number of traces - thread safe */
+    size_t getNumberOfTraces() const;
 
+    /** direct access to traces - not thread safe */
     auto const& traces() const
     {
         return m_traces;
