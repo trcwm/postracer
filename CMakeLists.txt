@@ -13,6 +13,7 @@ find_package(Qt5 COMPONENTS Widgets SerialPort REQUIRED)
 find_package(Threads)
 
 set(SRC 
+    src/tracecolors.cpp
     src/graph.cpp
     src/sweepdialog.cpp
     src/serialportdialog.cpp

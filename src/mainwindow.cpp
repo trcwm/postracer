@@ -7,6 +7,9 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QMenuBar>
+#include <QImage>
+#include <QPixmap>
+#include <QPainter>
 #include <QVariant>
 #include <QFileDialog>
 #include <QHBoxLayout>
@@ -23,8 +26,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_sweepSetup.m_baseLimitResistor = 100.0;   // 100k
     m_sweepSetup.m_baseSenseResistor = 3.3;     // 3k3
     m_sweepSetup.m_collectorResistor = 1.0;     // 1k
-    m_sweepSetup.m_baseCurrentStart  = 10;      // 10 uA
-    m_sweepSetup.m_baseCurrentStop   = 40;      // 40 uA
+    m_sweepSetup.m_baseCurrentStart  = 10;       // 10 uA
+    m_sweepSetup.m_baseCurrentStop   = 20;       // 20 uA
     m_sweepSetup.m_numberOfTraces    = 4;
 
     createActions();
@@ -80,6 +83,9 @@ void MainWindow::createActions()
 
     m_sweepSetupAction = new QAction("Setup");
     connect(m_sweepSetupAction, &QAction::triggered, this, &MainWindow::onSweepSetup);
+
+    m_clearTracesAction = new QAction("Clear traces");
+    connect(m_clearTracesAction, &QAction::triggered, this, &MainWindow::onClearTraces);
 }
 
 void MainWindow::createMenus()
@@ -96,6 +102,8 @@ void MainWindow::createMenus()
     sweepMenu->addAction(m_sweepSetupAction);
     sweepMenu->addAction(m_sweepDiodeAction);
     sweepMenu->addAction(m_sweepTransistorAction);
+    sweepMenu->addSeparator();
+    sweepMenu->addAction(m_clearTracesAction);
     sweepMenu->addAction(m_persistanceAction);
 }
 
@@ -122,11 +130,18 @@ bool MainWindow::event(QEvent *event)
             break;
         case DataEvent::DataType::StartSweep:
             {
-                size_t numberOfTraces = m_graph->newTrace(); 
+                size_t numberOfTraces = m_graph->newTrace();
 
                 auto item = new QListWidgetItem();
                 item->setData(Qt::DisplayRole, QString::asprintf("Trace %ld", numberOfTraces));
                 item->setData(Qt::UserRole, static_cast<int>(numberOfTraces));
+
+                QImage image(12,12, QImage::Format::Format_RGB888);
+                QPainter painter(&image);
+                painter.fillRect(image.rect(), QBrush(QColor(m_graph->traces().back().m_color)));
+                auto pixmap = QPixmap::fromImage(image);
+                item->setIcon(QIcon(pixmap));
+
                 m_traceList->addItem(item);
             }
             break;
@@ -147,8 +162,8 @@ void MainWindow::handleBaseData(const std::string &data)
     sscanf(data.c_str(), "%d\t%d", &v1, &v2);
 
     m_baseCurrent = (v1-v2) / 3300.0f / 256.0f / 1024.0f * 5.0f;
-    std::cout << "Base: " << v1 << " " << v2 << " -> " << m_baseCurrent*1.0e6 << "uA \n";
-    std::cout << std::flush;
+    //std::cout << "Base: " << v1 << " " << v2 << " -> " << m_baseCurrent*1.0e6 << "uA \n";
+    //std::cout << std::flush;
 }
 
 void MainWindow::handleDiodeData(const std::string &data)
@@ -201,7 +216,7 @@ void MainWindow::onSave()
             json << ss.str();
 
             bool first = true;
-            for(auto &pt : trace)
+            for(auto &pt : trace.m_data)
             {
                 if (!first) 
                 {
@@ -362,7 +377,7 @@ void MainWindow::onSweepTransistor()
                     pwm = std::max(pwm, 0);
                     pwm = std::min(pwm, 1023);
 
-                    std::cout << "Calcilate base voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
+                    std::cout << "Calculate base voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
 
                     m_serial->setBaseCurrent(pwm);
                     m_serial->sweepCollector(0,1023, 10);
@@ -382,4 +397,10 @@ void MainWindow::onSelectedTraceChanged()
         int32_t traceIndex = userData.toInt() - 1;
         m_graph->selectTrace(traceIndex);
     }
+}
+
+void MainWindow::onClearTraces()
+{
+    m_graph->clearData();
+    m_traceList->clear();
 }

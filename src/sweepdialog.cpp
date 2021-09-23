@@ -1,4 +1,5 @@
 #include <QVBoxLayout>
+#include <QGroupBox>
 #include <QStaticText>
 #include <QLabel>
 #include <QDialogButtonBox>
@@ -13,24 +14,37 @@ SweepDialog::SweepDialog(const SweepSetup &setup, QWidget *parent) : QDialog(par
 
     auto mainLayout = new QVBoxLayout();
 
-    auto setupLayout = new QGridLayout();
-    setupLayout->addWidget(new QLabel(tr("Base sense resistor")), 0, 0);
-    setupLayout->addWidget(new QLabel(tr("kOhm")), 0, 2);
-    setupLayout->addWidget(new QLabel(tr("Base limit resistor")), 1, 0);
-    setupLayout->addWidget(new QLabel(tr("kOhm")), 1, 2);
-    setupLayout->addWidget(new QLabel(tr("Max. base current")), 2, 0);
-    setupLayout->addWidget(new QLabel(tr("µA")), 2, 2);
-    setupLayout->addWidget(new QLabel(tr("Collector resistor")), 3, 0);
-    setupLayout->addWidget(new QLabel(tr("kOhm")), 3, 2);
-    setupLayout->addWidget(new QLabel(tr("Base current start")), 4, 0);
-    setupLayout->addWidget(new QLabel(tr("µA")), 4, 2);
-    setupLayout->addWidget(new QLabel(tr("Base current stop")), 5, 0);
-    setupLayout->addWidget(new QLabel(tr("µA")), 5, 2);
-    setupLayout->addWidget(new QLabel(tr("Number of sweeps")), 6, 0);
+    auto deviceBox = new QGroupBox("Device configuration");
+
+    auto configLayout = new QGridLayout();
+    configLayout->addWidget(new QLabel(tr("Base sense resistor")), 0, 0);
+    configLayout->addWidget(new QLabel(tr("kOhm")), 0, 2);
+    configLayout->addWidget(new QLabel(tr("Base limit resistor")), 1, 0);
+    configLayout->addWidget(new QLabel(tr("kOhm")), 1, 2);
+    configLayout->addWidget(new QLabel(tr("Max. base current")), 2, 0);
+    configLayout->addWidget(new QLabel(tr("µA")), 2, 2);
+    configLayout->addWidget(new QLabel(tr("Collector resistor")), 3, 0);
+    configLayout->addWidget(new QLabel(tr("kOhm")), 3, 2);
 
     m_maxBaseLabel = new QLabel();
-    setupLayout->addWidget(m_maxBaseLabel, 2, 1);
+    configLayout->addWidget(m_maxBaseLabel, 2, 1);
     
+    deviceBox->setLayout(configLayout);
+    
+    
+    
+    auto sweepBox = new QGroupBox("Sweep setup");
+
+    auto sweepLayout = new QGridLayout();
+    sweepLayout->addWidget(new QLabel(tr("Base current start")), 0, 0);
+    sweepLayout->addWidget(new QLabel(tr("µA")), 0, 2);
+    sweepLayout->addWidget(new QLabel(tr("Base current stop")), 1, 0);
+    sweepLayout->addWidget(new QLabel(tr("µA")), 1, 2);
+    sweepLayout->addWidget(new QLabel(tr("Number of sweeps")), 2, 0);
+
+    sweepBox->setLayout(sweepLayout);
+
+
     m_baseResistorEdit = new QLineEdit(QString::asprintf("%.3f", m_setup.m_baseSenseResistor));
     m_baseLimitResistorEdit = new QLineEdit(QString::asprintf("%.3f", m_setup.m_baseLimitResistor));
     m_collectorResistorEdit = new QLineEdit(QString::asprintf("%.3f", m_setup.m_collectorResistor));
@@ -42,9 +56,9 @@ SweepDialog::SweepDialog(const SweepSetup &setup, QWidget *parent) : QDialog(par
     connect(m_baseResistorEdit, &QLineEdit::textChanged, this, &SweepDialog::updateMaxBaseLabel);
     connect(m_baseLimitResistorEdit, &QLineEdit::textChanged, this, &SweepDialog::updateMaxBaseLabel);
 
-    setupLayout->addWidget(m_baseResistorEdit, 0,1);
-    setupLayout->addWidget(m_baseLimitResistorEdit, 1,1);
-    setupLayout->addWidget(m_collectorResistorEdit, 3,1);
+    configLayout->addWidget(m_baseResistorEdit, 0,1);
+    configLayout->addWidget(m_baseLimitResistorEdit, 1,1);
+    configLayout->addWidget(m_collectorResistorEdit, 3,1);
 
     m_baseStartEdit = new QLineEdit(QString::asprintf("%d", m_setup.m_baseCurrentStart));
     m_baseStopEdit  = new QLineEdit(QString::asprintf("%d", m_setup.m_baseCurrentStop));
@@ -54,13 +68,14 @@ SweepDialog::SweepDialog(const SweepSetup &setup, QWidget *parent) : QDialog(par
     m_baseStopEdit->setValidator(new QIntValidator(0.0, 1000));
     m_numSweepsEdit->setValidator(new QIntValidator(1, 100));
 
-    setupLayout->addWidget(m_baseStartEdit, 4,1);
-    setupLayout->addWidget(m_baseStopEdit, 5,1);
-    setupLayout->addWidget(m_numSweepsEdit, 6,1);
+    sweepLayout->addWidget(m_baseStartEdit, 0,1);
+    sweepLayout->addWidget(m_baseStopEdit, 1,1);
+    sweepLayout->addWidget(m_numSweepsEdit, 2,1);
 
     updateMaxBaseLabel();
 
-    mainLayout->addLayout(setupLayout);
+    mainLayout->addWidget(deviceBox);
+    mainLayout->addWidget(sweepBox);
 
     auto buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
                                      | QDialogButtonBox::Cancel);

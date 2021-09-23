@@ -50,8 +50,14 @@ protected:
         QPointF m_pos;
     };
 
-    std::vector<std::vector<QPointF> >  m_traces;
-    std::vector<LabelType>              m_labels;
+    struct TraceType
+    {
+        std::vector<QPointF> m_data;
+        QColor               m_color;
+    };
+
+    std::vector<TraceType> m_traces;
+    std::vector<LabelType> m_labels;
     
     struct ViewPort
     {

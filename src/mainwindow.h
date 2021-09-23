@@ -31,6 +31,7 @@ public slots:
     void onSave();
     void onPersistanceChanged();
     void onSelectedTraceChanged();
+    void onClearTraces();
 
 protected:
     void handleBaseData(const std::string &data);
@@ -48,6 +49,7 @@ protected:
     QAction *m_sweepDiodeAction;
     QAction *m_persistanceAction;
     QAction *m_sweepSetupAction;
+    QAction *m_clearTracesAction;
 
     std::atomic_bool m_threadRunning;
     float   m_baseCurrent;

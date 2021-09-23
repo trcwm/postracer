@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <QPainter>
 
+#include "tracecolors.h"
+
 Graph::Graph(QWidget *parent) : QWidget(parent)
 {
     clearData();
@@ -42,6 +44,9 @@ size_t Graph::newTrace()
     m_traces.emplace_back();
     std::cout << "new trace created\n";
 
+    size_t colorIndex = (m_traces.size()-1) % gs_traceColors.size();
+    m_traces.back().m_color = gs_traceColors.at(colorIndex);
+
     return m_traces.size();
 }
 
@@ -71,9 +76,9 @@ void Graph::addDataPoint(const QPointF &p)
 
     auto & currentCurve = m_traces.back();
 
-    if (currentCurve.empty())
+    if (currentCurve.m_data.empty())
     {
-        currentCurve.push_back(p);
+        currentCurve.m_data.push_back(p);
 
         m_dataExtents.m_maxx = std::max(static_cast<float>(p.x()), m_dataExtents.m_maxx);
         m_dataExtents.m_maxy = std::max(static_cast<float>(p.y()), m_dataExtents.m_maxy);
@@ -89,7 +94,7 @@ void Graph::addDataPoint(const QPointF &p)
     }
     else
     {
-        currentCurve.push_back(p);
+        currentCurve.m_data.push_back(p);
         m_dataExtents.m_maxx = std::max(static_cast<float>(p.x()), m_dataExtents.m_maxx);
         m_dataExtents.m_maxy = std::max(static_cast<float>(p.y()), m_dataExtents.m_maxy);
         m_dataExtents.m_miny = std::min(static_cast<float>(p.y()), m_dataExtents.m_miny);
@@ -106,20 +111,6 @@ void Graph::addDataPoint(const QPointF &p)
 
 void Graph::paintEvent(QPaintEvent *event)
 {
-    static const std::array<QColor, 10> s_lineColors =
-    {
-        QColor("#1f77b4"),
-        QColor("#ff7f0e"),
-        QColor("#2ca02c"),
-        QColor("#d62728"),
-        QColor("#9467bd"),
-        QColor("#8c564b"),
-        QColor("#e377c2"),
-        QColor("#7f7f7f"),
-        QColor("#bcbd22"),
-        QColor("#17becf")
-    };
-
     std::unique_lock<std::mutex>(m_mutex);
 
     QPainter painter(this);
@@ -131,7 +122,7 @@ void Graph::paintEvent(QPaintEvent *event)
     size_t colorIndex = 0;
     for(auto const& trace : m_traces)
     {
-        if (trace.size() < 2)
+        if (trace.m_data.size() < 2)
         {
             // don't plot anything because min/max aren't valid
         }
@@ -140,11 +131,11 @@ void Graph::paintEvent(QPaintEvent *event)
             //float xmul = width() / m_dataExtents.xspan();
             //float ymul = height() / m_dataExtents.yspan();
 
-            painter.setPen(QPen(s_lineColors.at(colorIndex), 3.0f));
+            painter.setPen(QPen(gs_traceColors.at(colorIndex), 3.0f));
 
-            auto const& firstPoint = trace.front();
+            auto const& firstPoint = trace.m_data.front();
             QPointF firstScreen = graphToScreen(firstPoint.x(), firstPoint.y());
-            for(auto const& p : trace)
+            for(auto const& p : trace.m_data)
             {
                 QPointF secondScreen = graphToScreen(p.x(), p.y());
                 painter.drawLine(firstScreen, secondScreen);
@@ -154,7 +145,7 @@ void Graph::paintEvent(QPaintEvent *event)
         }
 
         colorIndex++;
-        if (colorIndex >= s_lineColors.size())
+        if (colorIndex >= gs_traceColors.size())
         {
             colorIndex = 0;
         }
@@ -173,8 +164,8 @@ void Graph::paintEvent(QPaintEvent *event)
         auto const& trace = m_traces.at(m_selectedTrace);
 
         auto iter = std::lower_bound(
-            trace.begin(), 
-            trace.end(), 
+            trace.m_data.begin(), 
+            trace.m_data.end(), 
             graphPos,           
             [](const QPointF &lhs, const QPointF &rhs) -> bool
                 {
@@ -182,7 +173,7 @@ void Graph::paintEvent(QPaintEvent *event)
                 }
             );
 
-        if (iter != trace.end())
+        if (iter != trace.m_data.end())
         {
             auto nearestPos = graphToScreen(iter->x(), iter->y());
             painter.setPen(cursorPen);
