@@ -138,7 +138,11 @@ bool MainWindow::event(QEvent *event)
 
                 QImage image(12,12, QImage::Format::Format_RGB888);
                 QPainter painter(&image);
-                painter.fillRect(image.rect(), QBrush(QColor(m_graph->traces().back().m_color)));
+                painter.setPen(Qt::black);
+                painter.setBrush(QColor(m_graph->traces().back().m_color));
+                auto r = image.rect();
+                r.adjust(0,0,-1,-1);
+                painter.drawRect(r);
                 auto pixmap = QPixmap::fromImage(image);
                 item->setIcon(QIcon(pixmap));
 

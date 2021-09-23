@@ -11,6 +11,8 @@ int main(int argc, char **argv)
     window.show();
 
     window.setMinimumSize(720, 405);
+    window.setWindowTitle("POSTracer");
+    
     int width = window.frameGeometry().width();
     int height = window.frameGeometry().height();
     
