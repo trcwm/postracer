@@ -22,6 +22,7 @@ public:
 signals:
 
 public slots:
+    void onSweepSetup();
     void onSweepDiode();
     void onSweepTransistor();
     void onConnect();
@@ -46,6 +47,7 @@ protected:
     QAction *m_sweepTransistorAction;
     QAction *m_sweepDiodeAction;
     QAction *m_persistanceAction;
+    QAction *m_sweepSetupAction;
 
     std::atomic_bool m_threadRunning;
     float   m_baseCurrent;

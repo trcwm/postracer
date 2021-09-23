@@ -12,6 +12,7 @@
 
 #include "mainwindow.h"
 #include "serialportdialog.h"
+#include "sweepdialog.h"
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
@@ -69,6 +70,9 @@ void MainWindow::createActions()
     m_persistanceAction->setCheckable(true);
     m_persistanceAction->setChecked(false);
     connect(m_persistanceAction, &QAction::triggered, this, &MainWindow::onPersistanceChanged);
+
+    m_sweepSetupAction = new QAction("Setup");
+    connect(m_sweepSetupAction, &QAction::triggered, this, &MainWindow::onSweepSetup);
 }
 
 void MainWindow::createMenus()
@@ -82,6 +86,7 @@ void MainWindow::createMenus()
     serialMenu->addAction(m_disconnectAction);
 
     QMenu *sweepMenu = menuBar()->addMenu(tr("Sweep"));
+    sweepMenu->addAction(m_sweepSetupAction);
     sweepMenu->addAction(m_sweepDiodeAction);
     sweepMenu->addAction(m_sweepTransistorAction);
     sweepMenu->addAction(m_persistanceAction);
@@ -225,6 +230,15 @@ void MainWindow::onPersistanceChanged()
 {
     m_persistance = m_persistanceAction->isChecked();
     std::cout << "Persistance = " << m_persistance << "\n";
+}
+
+void MainWindow::onSweepSetup()
+{
+    SweepDialog dialog;
+    auto status = dialog.exec();
+    if (status == QDialog::Accepted)
+    {
+    }
 }
 
 void MainWindow::onConnect()

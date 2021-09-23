@@ -12,7 +12,7 @@ Graph::Graph(QWidget *parent) : QWidget(parent)
     m_graphMargins.m_left   = 80;
     m_graphMargins.m_right  = 10;
     m_graphMargins.m_top    = 10;
-    m_graphMargins.m_bottom = 20;
+    m_graphMargins.m_bottom = 30;
 
     QFont font;
     font.setFixedPitch(true);
