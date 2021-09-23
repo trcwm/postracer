@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 
 #include <QScreen>
 #include <QApplication>
@@ -10,6 +11,7 @@
 #include <QFileDialog>
 #include <QHBoxLayout>
 
+
 #include "mainwindow.h"
 #include "serialportdialog.h"
 #include "sweepdialog.h"
@@ -17,6 +19,13 @@
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     m_threadRunning.store(false);
+
+    m_sweepSetup.m_baseLimitResistor = 100.0;   // 100k
+    m_sweepSetup.m_baseSenseResistor = 3.3;     // 3k3
+    m_sweepSetup.m_collectorResistor = 1.0;     // 1k
+    m_sweepSetup.m_baseCurrentStart  = 10;      // 10 uA
+    m_sweepSetup.m_baseCurrentStop   = 40;      // 40 uA
+    m_sweepSetup.m_numberOfTraces    = 4;
 
     createActions();
     createMenus();
@@ -33,9 +42,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
     m_graph = new Graph(this);
     m_graph->selectTrace(0);
-    hLayout->addWidget(m_graph, 5);
-
-    
+    hLayout->addWidget(m_graph, 5);  
 }
 
 MainWindow::~MainWindow()
@@ -163,8 +170,8 @@ void MainWindow::handleCollectorData(const std::string &data)
 
     float collectorCurrent = (v1-v2) / 1000.0f / 256.0f / 1024.0f * 5.0f;
     float collectorVoltage = v2 / 256.0f / 1024.0f * 5.0f;
-    std::cout << "Collector: " << v1 << " " << v2 << " -> " << collectorCurrent*1.0e6 << " uA   voltage: " << collectorVoltage << " V\n";
-    std::cout << std::flush;
+    //std::cout << "Collector: " << v1 << " " << v2 << " -> " << collectorCurrent*1.0e6 << " uA   voltage: " << collectorVoltage << " V\n";
+    //std::cout << std::flush;
 
     m_lastCurvePoint = QPointF(collectorVoltage, collectorCurrent);
     m_graph->addDataPoint(m_lastCurvePoint);
@@ -234,10 +241,11 @@ void MainWindow::onPersistanceChanged()
 
 void MainWindow::onSweepSetup()
 {
-    SweepDialog dialog;
+    SweepDialog dialog(m_sweepSetup);
     auto status = dialog.exec();
     if (status == QDialog::Accepted)
     {
+        m_sweepSetup = dialog.getSetup();
     }
 }
 
@@ -329,20 +337,36 @@ void MainWindow::onSweepTransistor()
     if (m_serial)
     {   
         m_thread = std::thread([this]()
-            {
-#if 1            
-                for(uint32_t bb = 100; bb < 800; bb += 100)
+            {   
+                m_sweepSetup.m_numberOfTraces = std::max(1U, m_sweepSetup.m_numberOfTraces);
+
+                float baseCurrentStep = 0.0f;
+                if (m_sweepSetup.m_numberOfTraces > 1)
                 {
-                    m_serial->setBaseCurrent(bb);
+                    baseCurrentStep = (m_sweepSetup.m_baseCurrentStop - m_sweepSetup.m_baseCurrentStart) / (m_sweepSetup.m_numberOfTraces-1);
+                }
+
+                const float totalBaseResistance = m_sweepSetup.m_baseLimitResistor + m_sweepSetup.m_baseSenseResistor;
+
+                for(uint32_t sweep = 0; sweep < m_sweepSetup.m_numberOfTraces; sweep++)
+                {   
+                    // calculate the required PWM / voltage to achieve the
+                    // desired base current (in uA)
+
+                    float desiredBaseCurrent = m_sweepSetup.m_baseCurrentStart + sweep*baseCurrentStep;
+
+                    float baseVoltage = (desiredBaseCurrent*1e-6f) * (totalBaseResistance*1e3);
+                    baseVoltage += 0.65f;
+
+                    int32_t pwm = static_cast<int32_t>((baseVoltage / 5.0f) * 1023);
+                    pwm = std::max(pwm, 0);
+                    pwm = std::min(pwm, 1023);
+
+                    std::cout << "Calcilate base voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
+
+                    m_serial->setBaseCurrent(pwm);
                     m_serial->sweepCollector(0,1023, 10);
                 }
-#else
-                m_threadRunning.store(true);
-                m_serial->setBaseCurrent(300, false);
-                m_serial->setBaseCurrent(300);
-                m_serial->sweepCollector(0,1023, 10);
-                m_threadRunning.store(false);
-#endif
             }
         );
         m_thread.detach();

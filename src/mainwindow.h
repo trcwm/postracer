@@ -53,6 +53,7 @@ protected:
     float   m_baseCurrent;
     QPointF m_lastCurvePoint;
     
+    SweepSetup m_sweepSetup;
     bool    m_persistance;
 
     Graph *m_graph;

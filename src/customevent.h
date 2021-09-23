@@ -3,6 +3,17 @@
 #include <string>
 #include <QEvent>
 
+struct SweepSetup
+{
+    float m_baseSenseResistor;  // in kilo ohms
+    float m_baseLimitResistor;  // in kilo ohms
+    float m_collectorResistor;  // in kilo ohms
+
+    int32_t m_baseCurrentStart; // in microamps
+    int32_t m_baseCurrentStop;  // in microamps
+    uint32_t m_numberOfTraces;
+};
+
 class DataEvent : public QEvent
 {
 public:
