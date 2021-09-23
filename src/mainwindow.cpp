@@ -21,8 +21,6 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
-    m_threadRunning.store(false);
-
     m_sweepSetup.m_baseLimitResistor = 100.0;   // 100k
     m_sweepSetup.m_baseSenseResistor = 3.3;     // 3k3
     m_sweepSetup.m_collectorResistor = 1.0;     // 1k
@@ -50,10 +48,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
 MainWindow::~MainWindow()
 {
-    if (m_thread.joinable())
-    {
-        m_thread.join();
-    }
 }
 
 void MainWindow::createActions()
@@ -86,6 +80,9 @@ void MainWindow::createActions()
 
     m_clearTracesAction = new QAction("Clear traces");
     connect(m_clearTracesAction, &QAction::triggered, this, &MainWindow::onClearTraces);
+
+    m_aboutAction = new QAction("About");
+    connect(m_aboutAction, &QAction::triggered, this, &MainWindow::onAbout);
 }
 
 void MainWindow::createMenus()
@@ -105,6 +102,9 @@ void MainWindow::createMenus()
     sweepMenu->addSeparator();
     sweepMenu->addAction(m_clearTracesAction);
     sweepMenu->addAction(m_persistanceAction);
+
+    QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
+    helpMenu->addAction(m_aboutAction);
 }
 
 bool MainWindow::event(QEvent *event)
@@ -294,11 +294,6 @@ void MainWindow::onConnect()
 
 void MainWindow::onDisconnect()
 {
-    if (m_thread.joinable())
-    {
-        m_thread.join();
-    }
-
     if (m_serial)
     {
         m_serial.reset(nullptr);
@@ -312,12 +307,6 @@ void MainWindow::onDisconnect()
 
 void MainWindow::onSweepDiode()
 {
-    if (m_threadRunning.load())
-    {
-        QMessageBox::critical(this, "Error", "Previous sweep is still running!");
-        return;
-    }
-
     if (!m_persistance)
     {
         m_graph->clearData();
@@ -326,70 +315,51 @@ void MainWindow::onSweepDiode()
 
     if (m_serial)
     {   
-        m_thread = std::thread([this]()
-            {   
-                m_threadRunning.store(true);
-                m_serial->setBaseCurrent(0, false);
-                m_serial->setBaseCurrent(0);
-                m_serial->sweepDiode(0,1023, 10);
-                m_threadRunning.store(false);
-            }
-        );
-        m_thread.detach();
+        m_serial->setBaseCurrent(0, false);
+        m_serial->setBaseCurrent(0);
+        m_serial->sweepDiode(0,1023, 10);
+        m_serial->run();
     }
 }
 
 void MainWindow::onSweepTransistor()
 {
-    if (m_threadRunning.load())
-    {
-        QMessageBox::critical(this, "Error", "Previous sweep is still running!");
-        return;
-    }
-
     if (!m_persistance)
     {
         m_graph->clearData();
         m_traceList->clear();
     }
 
-    if (m_serial)
-    {   
-        m_thread = std::thread([this]()
-            {   
-                m_sweepSetup.m_numberOfTraces = std::max(1U, m_sweepSetup.m_numberOfTraces);
-
-                float baseCurrentStep = 0.0f;
-                if (m_sweepSetup.m_numberOfTraces > 1)
-                {
-                    baseCurrentStep = (m_sweepSetup.m_baseCurrentStop - m_sweepSetup.m_baseCurrentStart) / (m_sweepSetup.m_numberOfTraces-1);
-                }
-
-                const float totalBaseResistance = m_sweepSetup.m_baseLimitResistor + m_sweepSetup.m_baseSenseResistor;
-
-                for(uint32_t sweep = 0; sweep < m_sweepSetup.m_numberOfTraces; sweep++)
-                {   
-                    // calculate the required PWM / voltage to achieve the
-                    // desired base current (in uA)
-
-                    float desiredBaseCurrent = m_sweepSetup.m_baseCurrentStart + sweep*baseCurrentStep;
-
-                    float baseVoltage = (desiredBaseCurrent*1e-6f) * (totalBaseResistance*1e3);
-                    baseVoltage += 0.65f;
-
-                    int32_t pwm = static_cast<int32_t>((baseVoltage / 5.0f) * 1023);
-                    pwm = std::max(pwm, 0);
-                    pwm = std::min(pwm, 1023);
-
-                    std::cout << "Calculate base voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
-
-                    m_serial->setBaseCurrent(pwm);
-                    m_serial->sweepCollector(0,1023, 10);
-                }
-            }
-        );
-        m_thread.detach();
+    m_sweepSetup.m_numberOfTraces = std::max(1U, m_sweepSetup.m_numberOfTraces);
+    float baseCurrentStep = 0.0f;
+    if (m_sweepSetup.m_numberOfTraces > 1)
+    {
+        baseCurrentStep = (m_sweepSetup.m_baseCurrentStop - m_sweepSetup.m_baseCurrentStart) / (m_sweepSetup.m_numberOfTraces-1);
     }
+    
+    const float totalBaseResistance = m_sweepSetup.m_baseLimitResistor + m_sweepSetup.m_baseSenseResistor;
+
+    for(uint32_t sweep = 0; sweep < m_sweepSetup.m_numberOfTraces; sweep++)
+    {   
+        // calculate the required PWM / voltage to achieve the
+        // desired base current (in uA)
+
+        float desiredBaseCurrent = m_sweepSetup.m_baseCurrentStart + sweep*baseCurrentStep;
+
+        float baseVoltage = (desiredBaseCurrent*1e-6f) * (totalBaseResistance*1e3);
+        baseVoltage += 0.65f;
+
+        int32_t pwm = static_cast<int32_t>((baseVoltage / 5.0f) * 1023);
+        pwm = std::max(pwm, 0);
+        pwm = std::min(pwm, 1023);
+
+        //std::cout << "Calculate base voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
+
+        m_serial->setBaseCurrent(pwm, false);
+        m_serial->setBaseCurrent(pwm);
+        m_serial->sweepCollector(0,1023, 10);        
+    }
+    m_serial->run();
 }
 
 void MainWindow::onSelectedTraceChanged()
@@ -407,4 +377,9 @@ void MainWindow::onClearTraces()
 {
     m_graph->clearData();
     m_traceList->clear();
+}
+
+void MainWindow::onAbout()
+{
+    QMessageBox::aboutQt(this);
 }

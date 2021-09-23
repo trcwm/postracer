@@ -32,6 +32,7 @@ public slots:
     void onPersistanceChanged();
     void onSelectedTraceChanged();
     void onClearTraces();
+    void onAbout();
 
 protected:
     void handleBaseData(const std::string &data);
@@ -50,8 +51,8 @@ protected:
     QAction *m_persistanceAction;
     QAction *m_sweepSetupAction;
     QAction *m_clearTracesAction;
+    QAction *m_aboutAction;
 
-    std::atomic_bool m_threadRunning;
     float   m_baseCurrent;
     QPointF m_lastCurvePoint;
     
@@ -62,6 +63,5 @@ protected:
     QListWidget *m_traceList;
 
     std::unique_ptr<SerialCtrl> m_serial;
-    std::thread m_thread;
 };
 
