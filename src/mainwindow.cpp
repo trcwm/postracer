@@ -344,17 +344,24 @@ void MainWindow::onSweepTransistor()
         // calculate the required PWM / voltage to achieve the
         // desired base current (in uA)
 
-        float desiredBaseCurrent = m_sweepSetup.m_baseCurrentStart + sweep*baseCurrentStep;
+        float desiredBaseCurrent = static_cast<float>(m_sweepSetup.m_baseCurrentStart) + static_cast<float>(sweep)*baseCurrentStep;
 
-        float baseVoltage = (desiredBaseCurrent*1e-6f) * (totalBaseResistance*1e3);
+        std::cout << "Base current    : " << desiredBaseCurrent << " uA\n";
+
+        float baseVoltage = (desiredBaseCurrent*1e-6f) * (totalBaseResistance*1e3f);
         baseVoltage += 0.65f;
 
         int32_t pwm = static_cast<int32_t>((baseVoltage / 5.0f) * 1023);
         pwm = std::max(pwm, 0);
         pwm = std::min(pwm, 1023);
 
-        //std::cout << "Calculate base voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
+        std::cout << "Base PWM voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
 
+        m_serial->setBaseCurrent(pwm, false);
+        m_serial->setBaseCurrent(pwm, false);
+        m_serial->setBaseCurrent(pwm, false);
+        m_serial->setBaseCurrent(pwm, false);
+        m_serial->setBaseCurrent(pwm, false);
         m_serial->setBaseCurrent(pwm, false);
         m_serial->setBaseCurrent(pwm);
         m_serial->sweepCollector(0,1023, 10);        
