@@ -133,6 +133,7 @@ void SerialCtrl::transmitCommand()
         break; 
     case CommandType::SETDIODEPWM:
         ss << cmd.m_pwm << "C \n";
+        txstr = ss.str();
         m_port->write(txstr.c_str(), txstr.size());
         m_port->flush();
         m_pendingResponse = true;
