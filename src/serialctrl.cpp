@@ -88,10 +88,9 @@ void SerialCtrl::setCollectorVoltage(uint16_t dutyCycle, bool noMeasurement)
         auto data = ss.str();
         m_port->write(data.c_str(), data.size());
 
-        auto response = readLine();
-
         if (!noMeasurement)
         {
+            auto response = readLine();
             QApplication::postEvent(m_eventReceiver, new DataEvent(response, DataEvent::DataType::Collector));
         }
     }
@@ -106,10 +105,9 @@ void SerialCtrl::setDiodeVoltage(uint16_t dutyCycle, bool noMeasurement)
         auto data = ss.str();
         m_port->write(data.c_str(), data.size());
 
-        auto response = readLine();
-
         if (!noMeasurement)
         {
+            auto response = readLine();
             QApplication::postEvent(m_eventReceiver, new DataEvent(response, DataEvent::DataType::Diode));
         }
     }
@@ -118,13 +116,16 @@ void SerialCtrl::setDiodeVoltage(uint16_t dutyCycle, bool noMeasurement)
 std::string SerialCtrl::readLine()
 {
     std::string response;
-    
+
     while(true)
     {
         while (!m_port->bytesAvailable())
         {
             //fixme: handle time-out
-            m_port->waitForReadyRead(2000);
+            if (!m_port->waitForReadyRead(2000))
+            {
+                std::cerr << "Serial port time-out!\n";
+            }
         }
 
         char c;
@@ -142,9 +143,6 @@ std::string SerialCtrl::readLine()
                 {
                     m_port->getChar(&c);
                 }
-
-                std::cout << "R:" << response << "\n";
-
                 return response;
             }
         }
