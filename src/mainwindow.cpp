@@ -359,10 +359,6 @@ void MainWindow::onSweepTransistor()
 
         m_serial->setBaseCurrent(pwm, false);
         m_serial->setBaseCurrent(pwm, false);
-        m_serial->setBaseCurrent(pwm, false);
-        m_serial->setBaseCurrent(pwm, false);
-        m_serial->setBaseCurrent(pwm, false);
-        m_serial->setBaseCurrent(pwm, false);
         m_serial->setBaseCurrent(pwm);
         m_serial->sweepCollector(0,1023, 10);        
     }
