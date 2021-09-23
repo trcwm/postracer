@@ -2,7 +2,10 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QMenuBar>
+#include <QFileDialog>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 #include "mainwindow.h"
 #include "serialportdialog.h"
@@ -17,39 +20,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_graph = new Graph(this);
     setCentralWidget(m_graph);
 
-#if 0
-    m_serial.reset(SerialCtrl::open("/dev/ttyUSB0", this));
-
-    if (m_serial != nullptr)
-    {
-        m_serial->setCollectorVoltage(0, true);
-        m_serial->setBaseCurrent(500, true);
-    }
-    else
-    {
-        std::cout << "ugh!\n";
-    }
-
-
-    if (m_serial)
-    {
-        m_thread = std::thread([this]()
-        {
-#if 0            
-            for(uint32_t bb = 100; bb < 800; bb += 50)
-            {
-                m_serial->setBaseCurrent(bb);
-                m_serial->sweepCollector(0,1023, 10);
-            }
-#else
-            m_serial->setBaseCurrent(300);
-            m_serial->sweepCollector(0,1023, 10);
-#endif
-        });
-    }
-#endif
-
-
+    m_graph->selectTrace(0);
 }
 
 MainWindow::~MainWindow()
@@ -77,9 +48,13 @@ void MainWindow::createActions()
     m_sweepDiodeAction = new QAction("Diode");
     connect(m_sweepDiodeAction, &QAction::triggered, this, &MainWindow::onSweepDiode);
 
-    m_sweepTransistorAction = new QAction("Ttransistor");
+    m_sweepTransistorAction = new QAction("Transistor");
     connect(m_sweepTransistorAction, &QAction::triggered, this, &MainWindow::onSweepTransistor);
     
+    m_persistanceAction = new QAction("Trace persistance");
+    m_persistanceAction->setCheckable(true);
+    m_persistanceAction->setChecked(false);
+    connect(m_persistanceAction, &QAction::triggered, this, &MainWindow::onPersistanceChanged);
 }
 
 void MainWindow::createMenus()
@@ -95,6 +70,7 @@ void MainWindow::createMenus()
     QMenu *sweepMenu = menuBar()->addMenu(tr("Sweep"));
     sweepMenu->addAction(m_sweepDiodeAction);
     sweepMenu->addAction(m_sweepTransistorAction);
+    sweepMenu->addAction(m_persistanceAction);
 }
 
 bool MainWindow::event(QEvent *event)
@@ -116,9 +92,10 @@ bool MainWindow::event(QEvent *event)
         case DataEvent::DataType::EndSweep:
             // add label to the curve
             m_graph->addLabel(QString::asprintf("%.2f uA", m_baseCurrent*1.0e6f),
-                m_lastCurvePoint);
-
-            m_graph->newCurve();  
+                m_lastCurvePoint);            
+            break;
+        case DataEvent::DataType::StartSweep:
+            m_graph->newTrace();  
             break;
         default:
             return false;
@@ -169,12 +146,55 @@ void MainWindow::handleCollectorData(const std::string &data)
 
 void MainWindow::onSave()
 {
+    // save the traces as JSON file
+    auto filename = QFileDialog::getSaveFileName(this, tr("Save traces as JSON"), "", tr("JSON files (*.json)"));
 
+    if (!filename.isEmpty())
+    {
+        std::ofstream json(filename.toStdString());
+
+        if (!json.is_open())
+        {
+            return;
+        }
+
+        json << "{\n";
+
+        size_t index = 1;
+        for(auto & trace : m_graph->traces())
+        {
+            std::stringstream ss;
+            ss << "    \"trace" << index << "\": [";
+            json << ss.str();
+
+            bool first = true;
+            for(auto &pt : trace)
+            {
+                if (!first) 
+                {
+                    json << ",";
+                }
+
+                json << "[" << pt.x() << " ," << pt.y() << "]";
+                first = false;
+            }
+            
+            json << "]\n";
+        }
+
+        json << "}\n";
+    }
 }
 
 void MainWindow::onQuit()
 {
     QApplication::quit();
+}
+
+void MainWindow::onPersistanceChanged()
+{
+    m_persistance = m_persistanceAction->isChecked();
+    std::cout << "Persistance = " << m_persistance << "\n";
 }
 
 void MainWindow::onConnect()
@@ -227,7 +247,10 @@ void MainWindow::onSweepDiode()
         return;
     }
 
-    m_graph->clearData();
+    if (!m_persistance)
+    {
+        m_graph->clearData();
+    }
 
     if (m_serial)
     {   
@@ -252,7 +275,10 @@ void MainWindow::onSweepTransistor()
         return;
     }
 
-    m_graph->clearData();
+    if (!m_persistance)
+    {
+        m_graph->clearData();
+    }
 
     if (m_serial)
     {   

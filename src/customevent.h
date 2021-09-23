@@ -13,6 +13,7 @@ public:
         Base,
         Collector,
         Diode,
+        StartSweep,
         EndSweep
     };
 

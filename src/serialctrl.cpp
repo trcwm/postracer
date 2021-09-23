@@ -119,28 +119,41 @@ std::string SerialCtrl::readLine()
 {
     std::string response;
     
-    while(m_port->waitForReadyRead(2000))
+    while(true)
     {
-        char c;
-        while(m_port->getChar(&c))
+        while (!m_port->bytesAvailable())
         {
-            response += c;
-            if ((c == 10) || (c == 13))
+            //fixme: handle time-out
+            m_port->waitForReadyRead(2000);
+        }
+
+        char c;
+        while (m_port->bytesAvailable())
+        {
+            m_port->getChar(&c);
+            if (isAcceptableChar(c))
             {
-                while(m_port->bytesAvailable() > 0)
+                response += c;
+            }
+            else if (isEOL(c))
+            {
+                // discard the rest..
+                while (m_port->bytesAvailable())
                 {
-                    m_port->getChar(&c);    // discard all the rest..
+                    m_port->getChar(&c);
                 }
+
+                std::cout << "R:" << response << "\n";
+
                 return response;
             }
         }
     }
-
-    return response;
 }
 
 void SerialCtrl::sweepCollector(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step)
 {
+    QApplication::postEvent(m_eventReceiver, new DataEvent("", DataEvent::DataType::StartSweep));
     for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
     {
         setCollectorVoltage(duty);        
@@ -150,6 +163,7 @@ void SerialCtrl::sweepCollector(uint16_t dutyStart, uint16_t dutyEnd, uint16_t s
 
 void SerialCtrl::sweepDiode(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step)
 {
+    QApplication::postEvent(m_eventReceiver, new DataEvent("", DataEvent::DataType::StartSweep));
     for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
     {
         setDiodeVoltage(duty);

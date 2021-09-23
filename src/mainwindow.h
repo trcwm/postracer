@@ -27,6 +27,7 @@ public slots:
     void onDisconnect();
     void onQuit();
     void onSave();
+    void onPersistanceChanged();
 
 protected:
     void handleBaseData(const std::string &data);
@@ -42,11 +43,14 @@ protected:
     QAction *m_disconnectAction;
     QAction *m_sweepTransistorAction;
     QAction *m_sweepDiodeAction;
+    QAction *m_persistanceAction;
 
     std::atomic_bool m_threadRunning;
     float   m_baseCurrent;
     QPointF m_lastCurvePoint;
     
+    bool    m_persistance;
+
     Graph *m_graph;
     std::unique_ptr<SerialCtrl> m_serial;
     std::thread m_thread;

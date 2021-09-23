@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 
     window.show();
 
-    window.setFixedSize(720, 405);
+    window.setMinimumSize(720, 405);
     int width = window.frameGeometry().width();
     int height = window.frameGeometry().height();
     

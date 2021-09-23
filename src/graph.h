@@ -11,7 +11,7 @@ public:
     Graph(QWidget *parent = 0);
 
     void clearData();
-    void newCurve();
+    void newTrace();
 
     void addDataPoint(const QPointF &p);
     void addLabel(const QString &txt, const QPointF &p);
@@ -21,8 +21,25 @@ public:
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
 
+    void selectTrace(int32_t trace)
+    {
+        m_selectedTrace = trace;
+        update();
+    }
+
+    size_t getNumberOfTraces() const
+    {
+        return m_traces.size();
+    }
+
+    auto const& traces() const
+    {
+        return m_traces;
+    }
+
 protected:
     void paintEvent(QPaintEvent *event) override;
+
     void plotAxes(QPainter &painter);
     void plotLabels(QPainter &painter);
 
@@ -32,7 +49,7 @@ protected:
         QPointF m_pos;
     };
 
-    std::vector<std::vector<QPointF> >  m_curves;
+    std::vector<std::vector<QPointF> >  m_traces;
     std::vector<LabelType>              m_labels;
     
     struct ViewPort
@@ -41,6 +58,27 @@ protected:
         float   m_yspan;
         float   m_xstart;
         float   m_ystart;
+
+        constexpr float left() const noexcept
+        {
+            return m_xstart;
+        }
+
+        constexpr float right() const noexcept
+        {
+            return m_xstart + m_xspan;
+        }        
+
+        constexpr float top() const noexcept
+        {
+            return m_ystart;
+        }
+
+        constexpr float bottom() const noexcept
+        {
+            return m_ystart + m_yspan;
+        }        
+
     } m_graphViewport;
 
     struct
@@ -88,7 +126,11 @@ protected:
     QPointF     screenToGraphDelta(const QPointF &delta) const;
     QPointF     screenToGraph(const QPointF &p) const;
 
+    int32_t     m_selectedTrace;
+
     QPoint      m_mouseDownPos;
+    QPoint      m_cursorPos;
+
     ViewPort    m_viewportStartDrag;
     std::mutex m_mutex;
 };
