@@ -199,8 +199,16 @@ void MainWindow::onSave()
                 json << "[" << pt.x() << " ," << pt.y() << "]";
                 first = false;
             }
+
+            if (index != m_graph->traces().size())
+            {
+                json << "],\n";
+            }    
+            else
+            {
+                json << "]\n";
+            }
             
-            json << "]\n";
             index++;
         }
 
@@ -308,8 +316,8 @@ void MainWindow::onSweepTransistor()
     {   
         m_thread = std::thread([this]()
             {
-#if 0            
-                for(uint32_t bb = 100; bb < 800; bb += 50)
+#if 1            
+                for(uint32_t bb = 100; bb < 800; bb += 100)
                 {
                     m_serial->setBaseCurrent(bb);
                     m_serial->sweepCollector(0,1023, 10);
