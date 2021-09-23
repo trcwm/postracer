@@ -90,6 +90,14 @@ void SerialCtrl::transmitCommand()
         return;
     }
 
+    if (!m_port)
+    {
+        // remove everything from the queue!
+        std::queue<Command> empty;
+        std::swap(m_commands, empty);
+        return;
+    }
+
     auto cmd = m_commands.front();
 
 #ifdef DEBUGSERIAL    

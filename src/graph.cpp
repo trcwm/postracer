@@ -153,7 +153,7 @@ void Graph::paintEvent(QPaintEvent *event)
 
     plotLabels(painter);
 
-    if (!m_cursorPos.isNull())
+    if ((!m_cursorPos.isNull()) && (m_selectedTrace >=0) && (m_selectedTrace < m_traces.size()))
     {
         QPen cursorPen;
         cursorPen.setStyle(Qt::DashDotLine);

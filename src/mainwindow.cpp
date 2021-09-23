@@ -330,6 +330,11 @@ void MainWindow::onSweepTransistor()
         m_traceList->clear();
     }
 
+    if (!m_serial)
+    {
+        return;
+    }
+
     m_sweepSetup.m_numberOfTraces = std::max(1U, m_sweepSetup.m_numberOfTraces);
     float baseCurrentStep = 0.0f;
     if (m_sweepSetup.m_numberOfTraces > 1)
@@ -362,6 +367,7 @@ void MainWindow::onSweepTransistor()
         m_serial->setBaseCurrent(pwm);
         m_serial->sweepCollector(0,1023, 10);        
     }
+
     m_serial->run();
 }
 
