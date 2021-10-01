@@ -233,8 +233,9 @@ void Graph::paintEvent(QPaintEvent *event)
 
     m_plotRect.drawOutline(painter);
     
-    drawMarker(painter);
+    plotLabels(painter);
 
+    drawMarker(painter);
 }
 
 void Graph::drawMarker(QPainter &painter)
@@ -300,11 +301,19 @@ void Graph::drawMarker(QPainter &painter)
 
 void Graph::plotLabels(QPainter &painter)
 {
+    QFontMetrics fm(font());
+
     painter.setPen(Qt::white);
+    painter.setBrush(Qt::black);
+    painter.setRenderHints(QPainter::RenderHint::Antialiasing);
     for(auto const& label : m_labels)
     {
+        auto bb = fm.boundingRect(label.m_txt);
         auto pos = m_plotRect.graphToScreen( QPointF{label.m_pos.x(), label.m_pos.y()} );
-        painter.drawText(pos, label.m_txt); 
+        pos += QPointF{8,0};
+
+        painter.drawRoundedRect(bb.adjusted(pos.x()-4, pos.y()-4, pos.x()+4, pos.y()+4), 4, 4);
+        painter.drawText(pos, label.m_txt);         
     }
 }
 
