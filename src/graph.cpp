@@ -17,6 +17,11 @@ void PlotRect::setDataRect(const QRectF &dataRect)
     m_dataRect = dataRect;
 }
 
+QRectF PlotRect::getDataRect() const
+{
+    return m_dataRect;
+}
+
 void PlotRect::setPlotRect(const QRect &plotRect)
 {
     m_plotRect = plotRect;
@@ -33,6 +38,9 @@ void PlotRect::plotData(QPainter &painter,
     painter.setRenderHints(QPainter::Antialiasing);
     painter.setPen(QPen(lineColor, 3.0f));
 
+    painter.setClipRect(m_plotRect);
+    painter.setClipping(true);
+
     auto lineStart = graphToScreen(data.front());
     for(const auto& p : data)
     {
@@ -41,6 +49,8 @@ void PlotRect::plotData(QPainter &painter,
         painter.drawLine(lineStart, lineEnd);
         lineStart = lineEnd;
     }
+
+    painter.setClipping(false);
 }
 
 void PlotRect::clearRect(QPainter &painter)
@@ -72,7 +82,7 @@ QPointF PlotRect::screenToGraph(const QPointF &p) const
     const float ymul = static_cast<float>(m_plotRect.height()) / m_dataRect.height();
 
     float x = (p.x() - m_plotRect.left()) / xmul + m_dataRect.left();
-    float y = (p.x() + m_plotRect.bottom()) / ymul + m_dataRect.top();
+    float y = (p.y() + m_plotRect.bottom()) / ymul + m_dataRect.top();
 
     return QPointF{x,y};    
 }
@@ -222,12 +232,18 @@ void Graph::paintEvent(QPaintEvent *event)
     }
 
     m_plotRect.drawOutline(painter);
+    
+    drawMarker(painter);
 
+}
+
+void Graph::drawMarker(QPainter &painter)
+{
     if ((!m_cursorPos.isNull()) && (m_selectedTrace >=0) && (m_selectedTrace < m_traces.size()))
     {
         QPen cursorPen;
         cursorPen.setStyle(Qt::DashDotLine);
-        cursorPen.setColor(QColor("#A0FFFFFF"));
+        cursorPen.setColor(QColor("#FFFFFF"));
         
         auto graphPos = m_plotRect.screenToGraph(m_cursorPos);
 
@@ -280,7 +296,6 @@ void Graph::paintEvent(QPaintEvent *event)
 
         }
     }
-
 }
 
 void Graph::plotLabels(QPainter &painter)
@@ -288,8 +303,8 @@ void Graph::plotLabels(QPainter &painter)
     painter.setPen(Qt::white);
     for(auto const& label : m_labels)
     {
-        //auto pos = graphToScreen(label.m_pos.x(), label.m_pos.y());
-        //painter.drawText(pos, label.m_txt); 
+        auto pos = m_plotRect.graphToScreen( QPointF{label.m_pos.x(), label.m_pos.y()} );
+        painter.drawText(pos, label.m_txt); 
     }
 }
 
@@ -369,7 +384,7 @@ void Graph::plotAxes(QPainter &painter)
         const auto txt = QString::asprintf("%2.1e", xunit*x);
         auto bb  = fm.boundingRect(txt);
         auto txtpos = QPointF(QPointF(pos.x(), height()-1));
-        txtpos += QPointF{- bb.width() / 2.0f, - m_graphMargins.m_bottom/2.0f};
+        txtpos += QPointF{- bb.width() / 2.0f, (bb.height() / 2.0f) - m_graphMargins.m_bottom/2.0f};
 
         painter.setPen(QPen(QColor("#A0A0A0"), 2.0f));
         painter.drawText(txtpos, txt);
@@ -441,7 +456,7 @@ void Graph::mousePressEvent(QMouseEvent *event)
     setCursor(Qt::ClosedHandCursor);
     m_mouseState = MouseState::Dragging;
     m_mouseDownPos = event->pos();
-    //m_viewportStartDrag = m_graphViewport;
+    m_dataRectStartDrag = m_plotRect.getDataRect();
 }
 
 void Graph::mouseReleaseEvent(QMouseEvent *event)
@@ -454,10 +469,10 @@ void Graph::mouseMoveEvent(QMouseEvent *event)
 {
     if (m_mouseState == MouseState::Dragging)
     {
-        //auto offset = screenToGraphDelta(m_mouseDownPos - event->pos());
-        //m_graphViewport = m_viewportStartDrag;
-        //m_graphViewport.m_xstart += offset.x();
-        //m_graphViewport.m_ystart -= offset.y();
+        auto offset = m_plotRect.screenToGraph(m_mouseDownPos) - m_plotRect.screenToGraph(event->pos());
+        auto newDataRect = m_dataRectStartDrag;
+        newDataRect.adjust(offset.x(), -offset.y(), offset.x(), -offset.y());
+        m_plotRect.setDataRect(newDataRect);
         update();
     }
     else    

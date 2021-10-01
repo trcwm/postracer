@@ -11,6 +11,7 @@ class PlotRect
 public:
     PlotRect();
 
+    QRectF getDataRect() const;
     void setDataRect(const QRectF &dataRect);
     void setPlotRect(const QRect &plotRect);
 
@@ -23,7 +24,7 @@ public:
 
     QPointF graphToScreen(const QPointF &p) const;
     QPointF screenToGraph(const QPointF &p) const;
-    
+
     constexpr auto top() const
     {
         return m_plotRect.top();
@@ -91,6 +92,7 @@ protected:
 
     void plotAxes(QPainter &painter);
     void plotLabels(QPainter &painter);
+    void drawMarker(QPainter &painter);
     void updatePlotRectSize();
 
     struct LabelType
@@ -157,6 +159,6 @@ protected:
     QPoint      m_mouseDownPos;
     QPoint      m_cursorPos;
 
-    //ViewPort    m_viewportStartDrag;
+    QRectF      m_dataRectStartDrag;
     std::mutex m_mutex;
 };
