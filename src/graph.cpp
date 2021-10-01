@@ -7,6 +7,76 @@
 
 #include "tracecolors.h"
 
+PlotRect::PlotRect()
+{
+    m_plotRect = {0,0,0,0};
+}
+
+void PlotRect::setDataRect(const QRectF &dataRect)
+{
+    m_dataRect = dataRect;
+}
+
+void PlotRect::setPlotRect(const QRect &plotRect)
+{
+    m_plotRect = plotRect;
+}
+
+void PlotRect::plotData(QPainter &painter, 
+    const std::vector<QPointF> &data, const QColor &lineColor)
+{
+    if (data.size() <= 1)
+    {
+        return;
+    }
+
+    painter.setRenderHints(QPainter::Antialiasing);
+    painter.setPen(QPen(lineColor, 3.0f));
+
+    auto lineStart = graphToScreen(data.front());
+    for(const auto& p : data)
+    {
+        auto lineEnd = graphToScreen(p);
+
+        painter.drawLine(lineStart, lineEnd);
+        lineStart = lineEnd;
+    }
+}
+
+void PlotRect::clearRect(QPainter &painter)
+{
+    painter.fillRect(m_plotRect,Qt::black);
+}
+
+void PlotRect::drawOutline(QPainter &painter)
+{
+    painter.setRenderHints(QPainter::Antialiasing, false /* no anti-aliasing */);
+    //painter.setRenderHints(QPainter::HighQualityAntialiasing, false /* no anti-aliasing */);
+    painter.setPen(QColor("#FFFFFF"));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRect(m_plotRect);
+}
+
+QPointF PlotRect::graphToScreen(const QPointF &p) const
+{
+    const float xmul = static_cast<float>(m_plotRect.width()) / m_dataRect.width();
+    const float ymul = static_cast<float>(m_plotRect.height()) / m_dataRect.height();
+    float x = m_plotRect.left() + (p.x() - m_dataRect.left()) * xmul; 
+    float y = m_plotRect.bottom() - (p.y() - m_dataRect.top()) * ymul;
+    return QPointF{x,y};
+}
+
+QPointF PlotRect::screenToGraph(const QPointF &p) const
+{
+    const float xmul = static_cast<float>(m_plotRect.width()) / m_dataRect.width();
+    const float ymul = static_cast<float>(m_plotRect.height()) / m_dataRect.height();
+
+    float x = (p.x() - m_plotRect.left()) / xmul + m_dataRect.left();
+    float y = (p.x() + m_plotRect.bottom()) / ymul + m_dataRect.top();
+
+    return QPointF{x,y};    
+}
+
 Graph::Graph(QWidget *parent) : QWidget(parent)
 {
     clearData();
@@ -46,6 +116,7 @@ size_t Graph::newTrace()
 
     size_t colorIndex = (m_traces.size()-1) % gs_traceColors.size();
     m_traces.back().m_color = gs_traceColors.at(colorIndex);
+    m_traces.back().m_visible = true;
 
     return m_traces.size();
 }
@@ -82,13 +153,15 @@ void Graph::addDataPoint(const QPointF &p)
 
         m_dataExtents.m_maxx = std::max(static_cast<float>(p.x()), m_dataExtents.m_maxx);
         m_dataExtents.m_maxy = std::max(static_cast<float>(p.y()), m_dataExtents.m_maxy);
+        m_dataExtents.m_minx = std::min(static_cast<float>(p.x()), m_dataExtents.m_minx);  
         m_dataExtents.m_miny = std::min(static_cast<float>(p.y()), m_dataExtents.m_miny);  
 
-        m_graphViewport.m_xstart = m_dataExtents.m_minx;
-        m_graphViewport.m_ystart = m_dataExtents.m_miny;
-
-        m_graphViewport.m_xspan = m_dataExtents.xspan() * 1.1f;
-        m_graphViewport.m_yspan = m_dataExtents.yspan() * 1.1f;
+        m_plotRect.setDataRect(
+            QRectF{
+                m_dataExtents.m_minx, m_dataExtents.m_miny,
+                (m_dataExtents.m_maxx - m_dataExtents.m_minx) * 1.1f,
+                (m_dataExtents.m_maxy - m_dataExtents.m_miny) * 1.1f
+            });
 
         update();
     }
@@ -97,61 +170,58 @@ void Graph::addDataPoint(const QPointF &p)
         currentCurve.m_data.push_back(p);
         m_dataExtents.m_maxx = std::max(static_cast<float>(p.x()), m_dataExtents.m_maxx);
         m_dataExtents.m_maxy = std::max(static_cast<float>(p.y()), m_dataExtents.m_maxy);
+        m_dataExtents.m_minx = std::min(static_cast<float>(p.x()), m_dataExtents.m_minx);
         m_dataExtents.m_miny = std::min(static_cast<float>(p.y()), m_dataExtents.m_miny);
 
-        m_graphViewport.m_xstart = m_dataExtents.m_minx;
-        m_graphViewport.m_ystart = m_dataExtents.m_miny;
-
-        m_graphViewport.m_xspan = m_dataExtents.xspan() * 1.1f;
-        m_graphViewport.m_yspan = m_dataExtents.yspan() * 1.1f;
+        m_plotRect.setDataRect(
+            QRectF{
+                m_dataExtents.m_minx, m_dataExtents.m_miny,
+                (m_dataExtents.m_maxx - m_dataExtents.m_minx) * 1.1f,
+                (m_dataExtents.m_maxy - m_dataExtents.m_miny) * 1.1f
+            });
 
         update();        
     }
 }
 
+void Graph::resizeEvent(QResizeEvent *event)
+{
+    QSize newSize = event->size();
+    updatePlotRectSize();
+}
+
+void Graph::updatePlotRectSize()
+{
+    m_plotRect.setPlotRect(
+        QRect{
+            m_graphMargins.m_left, 
+            m_graphMargins.m_top,
+            size().width()-m_graphMargins.m_left-m_graphMargins.m_right, 
+            size().height()-m_graphMargins.m_top-m_graphMargins.m_bottom
+    });
+}
+
 void Graph::paintEvent(QPaintEvent *event)
 {
-    std::unique_lock<std::mutex>(m_mutex);
-
     QPainter painter(this);
     painter.fillRect(rect(), Qt::black);
     painter.setRenderHint(QPainter::Antialiasing);
 
+    m_plotRect.clearRect(painter);
+    
+    // plot axes
     plotAxes(painter);
 
-    size_t colorIndex = 0;
+    // plot traces
     for(auto const& trace : m_traces)
     {
-        if (trace.m_data.size() < 2)
+        if (trace.m_visible)
         {
-            // don't plot anything because min/max aren't valid
-        }
-        else
-        {
-            //float xmul = width() / m_dataExtents.xspan();
-            //float ymul = height() / m_dataExtents.yspan();
-
-            painter.setPen(QPen(gs_traceColors.at(colorIndex), 3.0f));
-
-            auto const& firstPoint = trace.m_data.front();
-            QPointF firstScreen = graphToScreen(firstPoint.x(), firstPoint.y());
-            for(auto const& p : trace.m_data)
-            {
-                QPointF secondScreen = graphToScreen(p.x(), p.y());
-                painter.drawLine(firstScreen, secondScreen);
-
-                firstScreen = secondScreen;
-            }
-        }
-
-        colorIndex++;
-        if (colorIndex >= gs_traceColors.size())
-        {
-            colorIndex = 0;
+            m_plotRect.plotData(painter, trace.m_data, trace.m_color);
         }
     }
 
-    plotLabels(painter);
+    m_plotRect.drawOutline(painter);
 
     if ((!m_cursorPos.isNull()) && (m_selectedTrace >=0) && (m_selectedTrace < m_traces.size()))
     {
@@ -159,23 +229,30 @@ void Graph::paintEvent(QPaintEvent *event)
         cursorPen.setStyle(Qt::DashDotLine);
         cursorPen.setColor(QColor("#A0FFFFFF"));
         
-        auto graphPos = screenToGraph(m_cursorPos);
+        auto graphPos = m_plotRect.screenToGraph(m_cursorPos);
 
         auto const& trace = m_traces.at(m_selectedTrace);
 
-        auto iter = std::lower_bound(
-            trace.m_data.begin(), 
-            trace.m_data.end(), 
-            graphPos,           
-            [](const QPointF &lhs, const QPointF &rhs) -> bool
-                {
-                    return lhs.x() < rhs.x();
-                }
-            );
-
-        if (iter != trace.m_data.end())
+        if (!trace.m_data.empty())
         {
-            auto nearestPos = graphToScreen(iter->x(), iter->y());
+            auto iter = std::lower_bound(
+                trace.m_data.begin(), 
+                trace.m_data.end(), 
+                graphPos,           
+                [](const QPointF &lhs, const QPointF &rhs) -> bool
+                    {
+                        return lhs.x() < rhs.x();
+                    }
+                );
+
+            // if we're past the end of the data array
+            // take the last point
+            if (iter == trace.m_data.end())
+            {
+                iter = trace.m_data.begin() + trace.m_data.size()-1;
+            }
+
+            auto nearestPos = m_plotRect.graphToScreen(QPointF{iter->x(), iter->y()});
             painter.setPen(cursorPen);
             painter.drawLine(nearestPos.x(), m_graphMargins.m_top, nearestPos.x(), height() - m_graphMargins.m_bottom - 1);
             painter.drawLine(m_graphMargins.m_left, nearestPos.y(), width() - m_graphMargins.m_right - 1, nearestPos.y());
@@ -200,8 +277,10 @@ void Graph::paintEvent(QPaintEvent *event)
             painter.drawText(textPos, txt);
             painter.setBrush(QColor("#FFFFFFFF"));
             painter.drawEllipse(nearestPos, 3,3);
+
         }
     }
+
 }
 
 void Graph::plotLabels(QPainter &painter)
@@ -209,8 +288,8 @@ void Graph::plotLabels(QPainter &painter)
     painter.setPen(Qt::white);
     for(auto const& label : m_labels)
     {
-        auto pos = graphToScreen(label.m_pos.x(), label.m_pos.y());
-        painter.drawText(pos, label.m_txt); 
+        //auto pos = graphToScreen(label.m_pos.x(), label.m_pos.y());
+        //painter.drawText(pos, label.m_txt); 
     }
 }
 
@@ -224,7 +303,6 @@ void Graph::plotAxes(QPainter &painter)
         // cannot draw axes -> too small
         return;
     }
-
 
     auto r = rect();
     r.moveTo(QPoint(m_graphMargins.m_left, m_graphMargins.m_top));
@@ -267,26 +345,60 @@ void Graph::plotAxes(QPainter &painter)
         yunit  /= 2.0f;
     }
 
+    QFontMetrics fm(font());
+
     for(uint32_t x=0; x<xticks; x++)
     {   
-        auto const pos = graphToScreen(x*xunit, 0);
-        painter.setPen(QPen(QColor("#505050"), 2.0f));
-        painter.drawLine(pos.x(), m_graphMargins.m_top, pos.x(), height()-1-m_graphMargins.m_bottom);
+        auto const pos = m_plotRect.graphToScreen( QPointF{x*xunit, 0} );
+
+        // dont plot ticks that in the left margin
+        if (pos.x() < m_plotRect.left())
+        {
+            continue;
+        }
+
+        // dont plot ticks that in the right margin
+        if (pos.x() >= m_plotRect.right())
+        {
+            continue;
+        }
+
+        painter.setPen(QPen(QColor("#505050"), 2.0f, Qt::PenStyle::DashDotDotLine));
+        painter.drawLine(pos.x(), m_graphMargins.m_top, pos.x(), height()-m_graphMargins.m_bottom);
+
+        const auto txt = QString::asprintf("%2.1e", xunit*x);
+        auto bb  = fm.boundingRect(txt);
+        auto txtpos = QPointF(QPointF(pos.x(), height()-1));
+        txtpos += QPointF{- bb.width() / 2.0f, - m_graphMargins.m_bottom/2.0f};
 
         painter.setPen(QPen(QColor("#A0A0A0"), 2.0f));
-        painter.drawText(QPointF(pos.x(), height()-1), QString::asprintf("%2.1e", xunit*x));
+        painter.drawText(txtpos, txt);
     }
 
     for(uint32_t y=0; y<yticks; y++)
     {   
-        auto const pos = graphToScreen(0,y*yunit);
-        painter.setPen(QPen(QColor("#505050"), 2.0f));
+        auto const pos = m_plotRect.graphToScreen( QPointF{0,y*yunit} );
+
+        // dont plot ticks that in the top margin
+        if (pos.y() < m_plotRect.top())
+        {
+            continue;
+        }
+
+        painter.setPen(QPen(QColor("#505050"), 2.0f, Qt::PenStyle::DashDotDotLine));
         painter.drawLine(m_graphMargins.m_left, pos.y(), width()-1-m_graphMargins.m_right, pos.y());
 
+        const auto txt = QString::asprintf("%2.1e", yunit*y);
+        auto bb  = fm.boundingRect(txt);
+        auto txtpos = QPointF(0, pos.y());
+        txtpos += QPointF{m_graphMargins.m_left / 2.0f - bb.width() / 2.0f, 0};
+
         painter.setPen(QPen(QColor("#A0A0A0"), 2.0f));
-        painter.drawText(QPointF(0, pos.y()), QString::asprintf("%2.1e", yunit*y));
+        painter.drawText(txtpos, txt);
     }
 }
+
+#if 0
 
 QPointF Graph::graphToScreen(float x, float y) const
 {
@@ -321,13 +433,15 @@ QPointF Graph::screenToGraph(const QPointF &p) const
 
     return QPointF{x,y};
 }
+#endif
+
 
 void Graph::mousePressEvent(QMouseEvent *event)
 {    
     setCursor(Qt::ClosedHandCursor);
     m_mouseState = MouseState::Dragging;
     m_mouseDownPos = event->pos();
-    m_viewportStartDrag = m_graphViewport;
+    //m_viewportStartDrag = m_graphViewport;
 }
 
 void Graph::mouseReleaseEvent(QMouseEvent *event)
@@ -340,10 +454,10 @@ void Graph::mouseMoveEvent(QMouseEvent *event)
 {
     if (m_mouseState == MouseState::Dragging)
     {
-        auto offset = screenToGraphDelta(m_mouseDownPos - event->pos());
-        m_graphViewport = m_viewportStartDrag;
-        m_graphViewport.m_xstart += offset.x();
-        m_graphViewport.m_ystart -= offset.y();
+        //auto offset = screenToGraphDelta(m_mouseDownPos - event->pos());
+        //m_graphViewport = m_viewportStartDrag;
+        //m_graphViewport.m_xstart += offset.x();
+        //m_graphViewport.m_ystart -= offset.y();
         update();
     }
     else    
@@ -368,22 +482,22 @@ void Graph::wheelEvent(QWheelEvent *event)
     //QPoint numPixels = event->pixelDelta();
     QPoint numDegrees = event->angleDelta() / 8;
 
-    auto mouseChipPos = screenToGraph(event->pos());
+    //auto mouseChipPos = screenToGraph(event->pos());
 
     if (numDegrees.y() > 0)
     {
         // limit zoom level to 50
         //m_zoomLevel = std::min(m_zoomLevel+1, 50);
-        auto llx = mouseChipPos.x() - ((mouseChipPos.x() - m_graphViewport.m_xstart) * 80 / 100);
-        auto lly = mouseChipPos.y() - ((mouseChipPos.y() - m_graphViewport.m_ystart) * 80 / 100);
-        auto urx = mouseChipPos.x() + ((m_graphViewport.m_xstart+m_graphViewport.m_xspan - mouseChipPos.x()) * 80 / 100);
-        auto ury = mouseChipPos.y() + ((m_graphViewport.m_ystart+m_graphViewport.m_yspan - mouseChipPos.y()) * 80 / 100);
+        //auto llx = mouseChipPos.x() - ((mouseChipPos.x() - m_graphViewport.m_xstart) * 80 / 100);
+        //auto lly = mouseChipPos.y() - ((mouseChipPos.y() - m_graphViewport.m_ystart) * 80 / 100);
+        //auto urx = mouseChipPos.x() + ((m_graphViewport.m_xstart+m_graphViewport.m_xspan - mouseChipPos.x()) * 80 / 100);
+        //auto ury = mouseChipPos.y() + ((m_graphViewport.m_ystart+m_graphViewport.m_yspan - mouseChipPos.y()) * 80 / 100);
 
-        m_graphViewport.m_xstart = llx;
-        m_graphViewport.m_ystart = lly;
+        //m_graphViewport.m_xstart = llx;
+        //m_graphViewport.m_ystart = lly;
 
-        m_graphViewport.m_xspan = urx - llx;
-        m_graphViewport.m_yspan = ury - lly;
+        //m_graphViewport.m_xspan = urx - llx;
+        //m_graphViewport.m_yspan = ury - lly;
 
         update();   
     }
@@ -392,16 +506,16 @@ void Graph::wheelEvent(QWheelEvent *event)
         // limit zoom level to 1
         //m_zoomLevel = std::max(m_zoomLevel-1, 1);    
 
-        auto llx = mouseChipPos.x() - ((mouseChipPos.x() - m_graphViewport.m_xstart) * 100 / 80);
-        auto lly = mouseChipPos.y() - ((mouseChipPos.y() - m_graphViewport.m_ystart) * 100 / 80);
-        auto urx = mouseChipPos.x() + ((m_graphViewport.m_xstart+m_graphViewport.m_xspan - mouseChipPos.x()) * 100 / 80);
-        auto ury = mouseChipPos.y() + ((m_graphViewport.m_ystart+m_graphViewport.m_yspan - mouseChipPos.y()) * 100 / 80);
+        //auto llx = mouseChipPos.x() - ((mouseChipPos.x() - m_graphViewport.m_xstart) * 100 / 80);
+        //auto lly = mouseChipPos.y() - ((mouseChipPos.y() - m_graphViewport.m_ystart) * 100 / 80);
+        //auto urx = mouseChipPos.x() + ((m_graphViewport.m_xstart+m_graphViewport.m_xspan - mouseChipPos.x()) * 100 / 80);
+        //auto ury = mouseChipPos.y() + ((m_graphViewport.m_ystart+m_graphViewport.m_yspan - mouseChipPos.y()) * 100 / 80);
 
-        m_graphViewport.m_xstart = llx;
-        m_graphViewport.m_ystart = lly;
+        //m_graphViewport.m_xstart = llx;
+        //m_graphViewport.m_ystart = lly;
 
-        m_graphViewport.m_xspan = urx - llx;
-        m_graphViewport.m_yspan = ury - lly;
+        //m_graphViewport.m_xspan = urx - llx;
+        //m_graphViewport.m_yspan = ury - lly;
 
         update();        
     }    

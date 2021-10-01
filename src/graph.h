@@ -5,6 +5,52 @@
 #include <QWidget>
 #include <QMouseEvent>
 
+/** helper class that plots a data traces */
+class PlotRect
+{
+public:
+    PlotRect();
+
+    void setDataRect(const QRectF &dataRect);
+    void setPlotRect(const QRect &plotRect);
+
+    void clearRect(QPainter &painter);
+    void drawOutline(QPainter &painter);
+
+    void plotData(QPainter &painter,
+        const std::vector<QPointF> &data, 
+        const QColor &lineColor);
+
+    QPointF graphToScreen(const QPointF &p) const;
+    QPointF screenToGraph(const QPointF &p) const;
+    
+    constexpr auto top() const
+    {
+        return m_plotRect.top();
+    }
+
+    constexpr auto bottom() const
+    {
+        return m_plotRect.bottom();
+    }
+
+    constexpr auto left() const
+    {
+        return m_plotRect.left();
+    }
+
+    constexpr auto right() const
+    {
+        return m_plotRect.right();
+    }
+
+protected:
+
+    QRectF  m_dataRect;
+    QRect   m_plotRect;
+};
+
+
 class Graph : public QWidget
 {
 public:
@@ -22,6 +68,8 @@ public:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+
+    void resizeEvent(QResizeEvent *event) override;
 
     void selectTrace(int32_t trace)
     {
@@ -43,6 +91,7 @@ protected:
 
     void plotAxes(QPainter &painter);
     void plotLabels(QPainter &painter);
+    void updatePlotRectSize();
 
     struct LabelType
     {
@@ -54,39 +103,13 @@ protected:
     {
         std::vector<QPointF> m_data;
         QColor               m_color;
+        bool                 m_visible;
     };
 
     std::vector<TraceType> m_traces;
     std::vector<LabelType> m_labels;
     
-    struct ViewPort
-    {
-        float   m_xspan;
-        float   m_yspan;
-        float   m_xstart;
-        float   m_ystart;
-
-        constexpr float left() const noexcept
-        {
-            return m_xstart;
-        }
-
-        constexpr float right() const noexcept
-        {
-            return m_xstart + m_xspan;
-        }        
-
-        constexpr float top() const noexcept
-        {
-            return m_ystart;
-        }
-
-        constexpr float bottom() const noexcept
-        {
-            return m_ystart + m_yspan;
-        }        
-
-    } m_graphViewport;
+    PlotRect m_plotRect;
 
     struct
     {
@@ -129,15 +152,11 @@ protected:
         Dragging
     } m_mouseState;
 
-    QPointF     graphToScreen(float x, float y) const;
-    QPointF     screenToGraphDelta(const QPointF &delta) const;
-    QPointF     screenToGraph(const QPointF &p) const;
-
     int32_t     m_selectedTrace;
 
     QPoint      m_mouseDownPos;
     QPoint      m_cursorPos;
 
-    ViewPort    m_viewportStartDrag;
+    //ViewPort    m_viewportStartDrag;
     std::mutex m_mutex;
 };
