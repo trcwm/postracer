@@ -133,6 +133,7 @@ bool MainWindow::event(QEvent *event)
                 size_t numberOfTraces = m_graph->newTrace();
 
                 auto item = new QListWidgetItem();
+                item->setFlags(Qt::ItemIsEditable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
                 item->setData(Qt::DisplayRole, QString::asprintf("Trace %ld", numberOfTraces));
                 item->setData(Qt::UserRole, static_cast<int>(numberOfTraces));
 
@@ -315,8 +316,8 @@ void MainWindow::onSweepDiode()
 
     if (m_serial)
     {   
-        m_serial->setBaseCurrent(0, false);
-        m_serial->setBaseCurrent(0);
+        m_serial->setBasePWM(0, false);
+        m_serial->setBasePWM(0);
         m_serial->sweepDiode(0,1023, 10);
         m_serial->run();
     }
@@ -362,9 +363,9 @@ void MainWindow::onSweepTransistor()
 
         std::cout << "Base PWM voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
 
-        m_serial->setBaseCurrent(pwm, false);
-        m_serial->setBaseCurrent(pwm, false);
-        m_serial->setBaseCurrent(pwm);
+        m_serial->setBasePWM(pwm, false);
+        m_serial->setBasePWM(pwm, false);
+        m_serial->setBasePWM(pwm);
         m_serial->sweepCollector(0,1023, 10);        
     }
 

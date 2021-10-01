@@ -16,11 +16,12 @@ public:
     static SerialCtrl* open(const std::string &devname, QObject *eventReceiver);
 
     void sweepCollector(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step);
+    void sweepBase(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step);
     void sweepDiode(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step);
-    
-    void setBaseCurrent(uint16_t dutyCycle, bool noMeasurement = false);
-    void setCollectorVoltage(uint16_t dutyCycle, bool noMeasurement = false);
-    void setDiodeVoltage(uint16_t dutyCycle, bool noMeasurement = false);
+        
+    void setBasePWM(uint16_t dutyCycle, bool noMeasurement = false);
+    void setCollectorPWM(uint16_t dutyCycle, bool noMeasurement = false);
+    void setDiodePWM(uint16_t dutyCycle, bool noMeasurement = false);
 
     bool isOpen() const;
     void close();

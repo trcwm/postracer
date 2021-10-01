@@ -162,7 +162,7 @@ void SerialCtrl::transmitCommand()
     }
 }
 
-void SerialCtrl::setBaseCurrent(uint16_t dutyCycle, bool noMeasurement)
+void SerialCtrl::setBasePWM(uint16_t dutyCycle, bool noMeasurement)
 {
     Command cmd;
     cmd.m_pwm = dutyCycle;
@@ -174,7 +174,7 @@ void SerialCtrl::setBaseCurrent(uint16_t dutyCycle, bool noMeasurement)
     m_commands.push(cmd);
 }
 
-void SerialCtrl::setCollectorVoltage(uint16_t dutyCycle, bool noMeasurement)
+void SerialCtrl::setCollectorPWM(uint16_t dutyCycle, bool noMeasurement)
 {
     Command cmd;
     cmd.m_pwm = dutyCycle;
@@ -186,7 +186,7 @@ void SerialCtrl::setCollectorVoltage(uint16_t dutyCycle, bool noMeasurement)
     m_commands.push(cmd);  
 }
 
-void SerialCtrl::setDiodeVoltage(uint16_t dutyCycle, bool noMeasurement)
+void SerialCtrl::setDiodePWM(uint16_t dutyCycle, bool noMeasurement)
 {
     Command cmd;
     cmd.m_pwm = dutyCycle;
@@ -221,7 +221,17 @@ void SerialCtrl::sweepCollector(uint16_t dutyStart, uint16_t dutyEnd, uint16_t s
     startSweep();
     for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
     {
-        setCollectorVoltage(duty);        
+        setCollectorPWM(duty);        
+    }
+    endSweep();
+}
+
+void SerialCtrl::sweepBase(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step)
+{
+    startSweep();
+    for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
+    {
+        setBasePWM(duty);
     }
     endSweep();
 }
@@ -231,7 +241,7 @@ void SerialCtrl::sweepDiode(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step)
     startSweep();
     for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
     {
-        setDiodeVoltage(duty);
+        setDiodePWM(duty);
     }
     endSweep();
 }
