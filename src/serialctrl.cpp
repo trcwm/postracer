@@ -6,12 +6,11 @@
 #include <QApplication>
 #include "serialctrl.h"
 
-SerialCtrl::SerialCtrl(QSerialPort *port, QObject *eventReceiver)
-    : m_port(port), m_eventReceiver(eventReceiver)
+SerialCtrl::SerialCtrl(QSerialPort *port, QueueType &queue)
+    : m_port(port), m_queue(queue)
 {
-    m_pendingResponse = false;
-    connect(m_port.get(), &QSerialPort::readyRead, this, &SerialCtrl::handleReadyRead);
-    connect(m_port.get(), &QSerialPort::errorOccurred, this, &SerialCtrl::handleError);
+    //connect(m_port.get(), &QSerialPort::readyRead, this, &SerialCtrl::handleReadyRead);
+    //connect(m_port.get(), &QSerialPort::errorOccurred, this, &SerialCtrl::handleError);
 
     // timer used to fix a bug in QSerialPort that causes readyRead to be broken
     // 
@@ -23,7 +22,7 @@ SerialCtrl::SerialCtrl(QSerialPort *port, QObject *eventReceiver)
 
 };
 
-SerialCtrl* SerialCtrl::open(const std::string &devname, QObject *eventReceiver)
+SerialCtrl* SerialCtrl::open(const std::string &devname, QueueType &queue)
 {
     std::unique_ptr<QSerialPort> port(new QSerialPort());
 
@@ -39,7 +38,7 @@ SerialCtrl* SerialCtrl::open(const std::string &devname, QObject *eventReceiver)
     else
     {
         port->readAll();
-        return new SerialCtrl(port.release(), eventReceiver);
+        return new SerialCtrl(port.release(), queue);
     }
 }
 
@@ -72,14 +71,12 @@ void SerialCtrl::close()
     }
 }
 
-void SerialCtrl::run()
+void SerialCtrl::doSweep(const Messages::SweepSetup &sweep)
 {
-    if ((!m_pendingResponse) && m_port)
-    {
-        transmitCommand();
-    }
+
 }
 
+#if 0
 void SerialCtrl::transmitCommand()
 {
     if (m_commands.empty())
@@ -162,6 +159,7 @@ void SerialCtrl::transmitCommand()
     }
 }
 
+
 void SerialCtrl::setBasePWM(uint16_t dutyCycle, bool noMeasurement)
 {
     Command cmd;
@@ -214,7 +212,6 @@ void SerialCtrl::endSweep()
     cmd.m_type = CommandType::ENDSWEEP;
     m_commands.push(cmd);
 }
-
 
 void SerialCtrl::sweepCollector(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step)
 {
@@ -328,3 +325,5 @@ void SerialCtrl::onTimer()
         m_port->waitForReadyRead(1);
     }
 }
+
+#endif

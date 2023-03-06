@@ -21,13 +21,6 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
-    m_sweepSetup.m_baseLimitResistor = 100.0;   // 100k
-    m_sweepSetup.m_baseSenseResistor = 3.3;     // 3k3
-    m_sweepSetup.m_collectorResistor = 1.0;     // 1k
-    m_sweepSetup.m_baseCurrentStart  = 10;       // 10 uA
-    m_sweepSetup.m_baseCurrentStop   = 20;       // 20 uA
-    m_sweepSetup.m_numberOfTraces    = 4;
-
     createActions();
     createMenus();
 
@@ -44,6 +37,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_graph = new Graph(this);
     m_graph->selectTrace(0);
     hLayout->addWidget(m_graph, 5);  
+
+    memset(&m_sweepSetup, 0, sizeof(m_sweepSetup));
 }
 
 MainWindow::~MainWindow()
@@ -107,6 +102,7 @@ void MainWindow::createMenus()
     helpMenu->addAction(m_aboutAction);
 }
 
+#if 0
 bool MainWindow::event(QEvent *event)
 {
     if(event->type() == QEvent::User)
@@ -159,14 +155,14 @@ bool MainWindow::event(QEvent *event)
     
     return QMainWindow::event(event);
 }
-
+#endif
 
 void MainWindow::handleBaseData(const std::string &data)
 {
     int32_t v1,v2;
     sscanf(data.c_str(), "%d\t%d", &v1, &v2);
 
-    m_baseCurrent = (v1-v2) / 3300.0f / 256.0f / 1024.0f * 5.0f;
+    //m_baseCurrent = (v1-v2) / 3300.0f / 256.0f / 1024.0f * 5.0f;
     //std::cout << "Base: " << v1 << " " << v2 << " -> " << m_baseCurrent*1.0e6 << "uA \n";
     //std::cout << std::flush;
 }
@@ -278,7 +274,7 @@ void MainWindow::onConnect()
         auto serialPortLocation = dialog.getSerialPortLocation().toStdString();
         if (!m_serial)        
         {
-            auto ctrl = SerialCtrl::open(serialPortLocation, this);
+            auto ctrl = SerialCtrl::open(serialPortLocation, m_traceResults);
             m_serial.reset(ctrl);
 
             if (m_serial)
@@ -308,6 +304,7 @@ void MainWindow::onDisconnect()
 
 void MainWindow::onSweepDiode()
 {
+#if 0    
     if (!m_persistance)
     {
         m_graph->clearData();
@@ -316,15 +313,17 @@ void MainWindow::onSweepDiode()
 
     if (m_serial)
     {   
-        m_serial->setBasePWM(0, false);
-        m_serial->setBasePWM(0);
-        m_serial->sweepDiode(0,1023, 10);
+        //m_serial->setBasePWM(0, false);
+        //m_serial->setBasePWM(0);
+        //m_serial->sweepDiode(0,1023, 10);
         m_serial->run();
     }
+#endif    
 }
 
 void MainWindow::onSweepTransistor()
 {
+#if 0    
     if (!m_persistance)
     {
         m_graph->clearData();
@@ -336,7 +335,7 @@ void MainWindow::onSweepTransistor()
         return;
     }
 
-    m_sweepSetup.m_numberOfTraces = std::max(1U, m_sweepSetup.m_numberOfTraces);
+    m_sweepSetup.m_points = std::max(1U, m_sweepSetup.m_points);
     float baseCurrentStep = 0.0f;
     if (m_sweepSetup.m_numberOfTraces > 1)
     {
@@ -363,13 +362,14 @@ void MainWindow::onSweepTransistor()
 
         std::cout << "Base PWM voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
 
-        m_serial->setBasePWM(pwm, false);
-        m_serial->setBasePWM(pwm, false);
-        m_serial->setBasePWM(pwm);
-        m_serial->sweepCollector(0,1023, 10);        
+        //m_serial->setBasePWM(pwm, false);
+        //m_serial->setBasePWM(pwm, false);
+        //m_serial->setBasePWM(pwm);
+        //m_serial->sweepCollector(0,1023, 10);        
     }
 
     m_serial->run();
+#endif
 }
 
 void MainWindow::onSelectedTraceChanged()

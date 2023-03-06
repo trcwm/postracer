@@ -5,7 +5,8 @@
 #include <QListWidget>
 #include <QAction>
 
-#include "customevent.h"
+#include "messagetypes.h"
+#include "messagequeue.h"
 #include "serialctrl.h"
 #include "graph.h"
 
@@ -17,7 +18,7 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     virtual ~MainWindow();
 
-    bool event(QEvent *event) override;
+    //bool event(QEvent *event) override;
 
 signals:
 
@@ -53,14 +54,15 @@ protected:
     QAction *m_clearTracesAction;
     QAction *m_aboutAction;
 
-    float   m_baseCurrent;
     QPointF m_lastCurvePoint;
     
-    SweepSetup m_sweepSetup;
+    Messages::SweepSetup m_sweepSetup;
     bool    m_persistance;
 
     Graph *m_graph;
     QListWidget *m_traceList;
+
+    MessageQueue<Messages::DataPoint> m_traceResults;
 
     std::unique_ptr<SerialCtrl> m_serial;
 };
