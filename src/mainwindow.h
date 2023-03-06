@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QListWidget>
 #include <QAction>
+#include <QTimer>
 
 #include "messagetypes.h"
 #include "messagequeue.h"
@@ -17,8 +18,6 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     virtual ~MainWindow();
-
-    //bool event(QEvent *event) override;
 
 signals:
 
@@ -34,15 +33,13 @@ public slots:
     void onSelectedTraceChanged();
     void onClearTraces();
     void onAbout();
+    void onMeasurementTimer();
 
 protected:
-    void handleBaseData(const std::string &data);
-    void handleCollectorData(const std::string &data);
-    void handleDiodeData(const std::string &data);
-
+    void createNewTrace();
     void createMenus();
     void createActions();
-
+    
     QAction *m_quitAction;
     QAction *m_saveAction;
     QAction *m_connectAction;
@@ -61,6 +58,8 @@ protected:
 
     Graph *m_graph;
     QListWidget *m_traceList;
+
+    QTimer *m_timer = nullptr;
 
     MessageQueue<Messages::DataPoint> m_traceResults;
 

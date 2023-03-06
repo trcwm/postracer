@@ -3,7 +3,10 @@
 #include <sstream>
 #include <iostream>
 #include <thread>
+#include <QDebug>
 #include <QApplication>
+#include <QStringList>
+#include "profiling.h"
 #include "serialctrl.h"
 
 SerialCtrl::SerialCtrl(QSerialPort *port, QueueType &queue)
@@ -27,7 +30,8 @@ SerialCtrl* SerialCtrl::open(const std::string &devname, QueueType &queue)
     std::unique_ptr<QSerialPort> port(new QSerialPort());
 
     port->setPortName(QString::fromStdString(devname));
-    port->setBaudRate(QSerialPort::Baud115200);
+    port->setBaudRate(QSerialPort::Baud9600);
+
     port->setDataBits(QSerialPort::Data8);
     port->setParity(QSerialPort::NoParity);
 
@@ -37,7 +41,8 @@ SerialCtrl* SerialCtrl::open(const std::string &devname, QueueType &queue)
     }
     else
     {
-        port->readAll();
+        port->flush();
+        port->readAll();        
         return new SerialCtrl(port.release(), queue);
     }
 }
@@ -71,259 +76,242 @@ void SerialCtrl::close()
     }
 }
 
-void SerialCtrl::doSweep(const Messages::SweepSetup &sweep)
-{
-
-}
-
-#if 0
-void SerialCtrl::transmitCommand()
-{
-    if (m_commands.empty())
-    {
-        #ifdef DEBUGSERIAL
-        std::cout << "TransmitCommand: queue empty\n";
-        #endif
-        return;
-    }
-
-    if (!m_port)
-    {
-        // remove everything from the queue!
-        std::queue<Command> empty;
-        std::swap(m_commands, empty);
-        return;
-    }
-
-    auto cmd = m_commands.front();
-
-#ifdef DEBUGSERIAL    
-    switch(cmd.m_type)
-    {
-    case CommandType::SETBASEPWM:
-        std::cout << "TransmitCommand: SETBASEPWM\n";
-        break;
-    case CommandType::SETCOLLECTORPWM:
-        std::cout << "TransmitCommand: SETCOLLECTORPWM\n";
-        break;
-    case CommandType::SETDIODEPWM:
-        std::cout << "TransmitCommand: SETDIODEPWM\n";
-        break;
-    case CommandType::STARTSWEEP:
-        std::cout << "TransmitCommand: STARTSWEEP\n";
-        break;
-    case CommandType::ENDSWEEP:
-        std::cout << "TransmitCommand: ENDSWEEP\n";
-        break;        
-    }
-#endif    
-
-    std::stringstream ss;
-    std::string txstr;
-    switch(cmd.m_type)
-    {
-    case CommandType::SETBASEPWM:
-        ss << cmd.m_pwm << "B \n";
-        txstr = ss.str();
-        m_port->write(txstr.c_str(), txstr.size());
-        m_port->flush();
-        m_pendingResponse = true;
-        break;
-    case CommandType::SETCOLLECTORPWM:
-        ss << cmd.m_pwm << "C \n";
-        txstr = ss.str();
-        m_port->write(txstr.c_str(), txstr.size());
-        m_port->flush();
-        m_pendingResponse = true;
-        break; 
-    case CommandType::SETDIODEPWM:
-        ss << cmd.m_pwm << "C \n";
-        txstr = ss.str();
-        m_port->write(txstr.c_str(), txstr.size());
-        m_port->flush();
-        m_pendingResponse = true;
-        break;         
-    case CommandType::STARTSWEEP:
-        QApplication::postEvent(m_eventReceiver, new DataEvent("", DataEvent::DataType::StartSweep));
-        m_commands.pop();
-        transmitCommand();
-        break;
-    case CommandType::ENDSWEEP:
-        QApplication::postEvent(m_eventReceiver, new DataEvent("", DataEvent::DataType::EndSweep));
-        m_commands.pop();
-        transmitCommand();
-        break;        
-    default:
-        // invalid command!
-        break;
-    }
-}
-
-
-void SerialCtrl::setBasePWM(uint16_t dutyCycle, bool noMeasurement)
-{
-    Command cmd;
-    cmd.m_pwm = dutyCycle;
-    cmd.m_reportResponse = !noMeasurement;
-    cmd.m_type = CommandType::SETBASEPWM;
-    cmd.m_response[0] = 0;
-    cmd.m_response[1] = 0;
-
-    m_commands.push(cmd);
-}
-
-void SerialCtrl::setCollectorPWM(uint16_t dutyCycle, bool noMeasurement)
-{
-    Command cmd;
-    cmd.m_pwm = dutyCycle;
-    cmd.m_reportResponse = !noMeasurement;
-    cmd.m_type = CommandType::SETCOLLECTORPWM;
-    cmd.m_response[0] = 0;
-    cmd.m_response[1] = 0;
-
-    m_commands.push(cmd);  
-}
-
-void SerialCtrl::setDiodePWM(uint16_t dutyCycle, bool noMeasurement)
-{
-    Command cmd;
-    cmd.m_pwm = dutyCycle;
-    cmd.m_reportResponse = !noMeasurement;
-    cmd.m_type = CommandType::SETDIODEPWM;
-    cmd.m_response[0] = 0;
-    cmd.m_response[1] = 0;
-
-    m_commands.push(cmd);
-}
-
-
-void SerialCtrl::startSweep()
-{
-    Command cmd;
-    cmd.m_reportResponse = true;
-    cmd.m_type = CommandType::STARTSWEEP;
-    m_commands.push(cmd);
-}
-
-void SerialCtrl::endSweep()
-{
-    Command cmd;
-    cmd.m_reportResponse = true;
-    cmd.m_type = CommandType::ENDSWEEP;
-    m_commands.push(cmd);
-}
-
-void SerialCtrl::sweepCollector(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step)
-{
-    startSweep();
-    for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
-    {
-        setCollectorPWM(duty);        
-    }
-    endSweep();
-}
-
-void SerialCtrl::sweepBase(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step)
-{
-    startSweep();
-    for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
-    {
-        setBasePWM(duty);
-    }
-    endSweep();
-}
-
-void SerialCtrl::sweepDiode(uint16_t dutyStart, uint16_t dutyEnd, uint16_t step)
-{
-    startSweep();
-    for(uint16_t duty = dutyStart; duty <= dutyEnd; duty += step)
-    {
-        setDiodePWM(duty);
-    }
-    endSweep();
-}
-
-
-void SerialCtrl::handleReadyRead()
-{
-    auto buf = m_port->readAll();
-
-    //std::cout << "serial read: '" << buf.toStdString() << "'\n";
-
-    std::string response;
-    for(char c : buf)
-    {
-        if (isAcceptableChar(c))
-        {
-            response += c;
-        }
-        
-        if (isEOL(c))
-        {
-            break;
-        }
-    }
-
-    auto cmd = m_commands.front();
-    m_commands.pop();
-
-    if (cmd.m_reportResponse)
-    {
-        switch(cmd.m_type)       
-        {
-        case CommandType::SETCOLLECTORPWM:
-            QApplication::postEvent(m_eventReceiver, new DataEvent(response, DataEvent::DataType::Collector));
-            break;
-        case CommandType::SETBASEPWM:
-            QApplication::postEvent(m_eventReceiver, new DataEvent(response, DataEvent::DataType::Base));
-            break;
-        case CommandType::SETDIODEPWM:
-            QApplication::postEvent(m_eventReceiver, new DataEvent(response, DataEvent::DataType::Diode));
-            break;
-        }
-    }
-
-    //std::cout << "Response RX: " << response << " queue=" << m_commands.size() << "\n";
-    m_pendingResponse = false;
-
-    run();  // trigger next command TX
-}
-
-void SerialCtrl::handleError(QSerialPort::SerialPortError error)
-{
-#ifdef DEBUGSERIAL    
-    switch(error)
-    {
-    case QSerialPort::OpenError:
-        std::cout << "Serial open error\n";
-        break;
-    case QSerialPort::ReadError:
-        std::cout << "Serial read error\n";
-        break;
-    case QSerialPort::WriteError:
-        std::cout << "Serial write error\n";
-        break;       
-    case QSerialPort::TimeoutError:
-        //std::cout << "Serial time-out error\n";
-        break;        
-    default:
-        std::cout << "Serial error " << error << "\n";
-        break;                
-    }
-#endif
-}
-
-void SerialCtrl::handleTimeout()
-{
-
-}
-
-void SerialCtrl::onTimer()
+void SerialCtrl::sendString(const QString &txt)
 {
     if (m_port)
     {
-        m_port->waitForReadyRead(1);
+        m_port->write(txt.toUtf8());
+    }
+
+    // wait for reply
+    if (m_port->waitForBytesWritten(1000))
+    {        
+    }
+    else
+    {
+        qDebug() << "Serial write time-out";
+        return;
+    }        
+}
+
+std::optional<QString> SerialCtrl::readLine()
+{
+    QByteArray responseData;
+    while (m_port->bytesAvailable() || m_port->waitForReadyRead(1000))
+    {
+        auto byte = m_port->read(1);
+        responseData += byte;
+        
+        if (byte.at(0) == '\n')
+        {
+            return responseData;
+        }
+    }
+    return std::nullopt;
+}
+
+void SerialCtrl::doSweep(const Messages::SweepSetup &sweep)
+{
+    Profiling::Timer profiling("doSweep");
+
+    const float currentShuntR = 1.5f;  // estimated
+    switch(sweep.m_sweepType)
+    {
+    case Messages::SweepType::Diode:    
+        qDebug() << "Starting diode sweep..";
+        for(int pt=0; pt<sweep.m_points; pt++)
+        {
+            float frac = static_cast<float>(pt)/(sweep.m_points-1.0f);
+            auto current = sweep.m_diode.m_startCurrent +
+                frac*(sweep.m_diode.m_stopCurrent - sweep.m_diode.m_startCurrent);
+
+            setBaseCurrent(current);
+            auto data = measure();
+            if (data.m_valid)
+            {
+                Messages::DataPoint p;
+                p.m_baseCurrent = current;
+                p.m_baseVoltage = data.m_Base - data.m_Emitter;
+                p.m_collectorVoltage = 0; // not applicable
+                p.m_emitterCurrent = data.m_Emitter / currentShuntR;
+                m_queue.push(std::move(p));
+#if 0
+                qDebug() << "  Base current     : " << p.m_baseCurrent;
+                qDebug() << "  Base voltage     : " << p.m_baseVoltage;
+                qDebug() << "  Collector voltage: " << p.m_collectorVoltage;
+                qDebug() << "  Emitter voltage  : " << data.m_Emitter;
+                qDebug() << "  Emitter current  : " << p.m_emitterCurrent;
+#endif                
+            }
+            else
+            {
+                qDebug("Diode sweep aborted due to error");
+                return;
+            }
+        }
+        break;
+    case Messages::SweepType::BJT_Base:
+        qDebug() << "Starting BJT base sweep..";
+        for(int pt=0; pt<sweep.m_points; pt++)
+        {
+            
+        }    
+        break;
+    case Messages::SweepType::BJT_Collector:
+        qDebug() << "Starting BJT collector sweep..";
+
+        setBaseCurrent(sweep.m_collector.m_baseCurrent);
+
+        for(int pt=0; pt<sweep.m_points; pt++)
+        {
+            float frac = static_cast<float>(pt)/(sweep.m_points-1.0f);
+            auto voltage = sweep.m_collector.m_startVoltage +
+                frac*(sweep.m_collector.m_stopVoltage - sweep.m_collector.m_startVoltage);
+            
+            setCollectorVoltage(voltage);
+
+            auto data = measure();
+            if (data.m_valid)
+            {
+                Messages::DataPoint p;
+                p.m_baseCurrent = sweep.m_collector.m_baseCurrent;
+                p.m_baseVoltage = data.m_Base - data.m_Emitter;
+                p.m_collectorVoltage = voltage;
+                p.m_emitterCurrent = data.m_Emitter / currentShuntR;
+                m_queue.push(std::move(p));
+#if 0
+                qDebug() << "  Base current     : " << p.m_baseCurrent;
+                qDebug() << "  Base voltage     : " << p.m_baseVoltage;
+                qDebug() << "  Collector voltage: " << p.m_collectorVoltage;
+                qDebug() << "  Emitter voltage  : " << data.m_Emitter;
+                qDebug() << "  Emitter current  : " << p.m_emitterCurrent;
+#endif                
+            }
+            else
+            {
+                qDebug("Diode sweep aborted due to error");
+                return;
+            }
+        }
+        break;
+    default:
+        qDebug() << "Invalid sweep type";
+        break;
     }
 }
 
-#endif
+void SerialCtrl::setBaseCurrent(float amperes)
+{
+    auto microAmps = static_cast<int>(amperes * 1e6f);
+
+    if (microAmps > 5000) microAmps = 5000; 
+    if (microAmps < 0) microAmps = 0; 
+
+    QString cmd = "B";
+    cmd.append(QString::number(microAmps));
+    cmd.append("\n\r");
+
+    sendString(cmd);
+
+    auto response = readLine();
+    if (!response)
+    {
+        qDebug() << "Serial write time-out";
+        return;
+    }
+
+    if (response->at(0) == '-')
+    {
+        qDebug() << "Error setting base current";
+    }
+
+    //qDebug() << "  response: " << response.value();
+    //qDebug() << "Base current set to " << amperes * 1e6 << " uA";
+}
+
+void SerialCtrl::setCollectorVoltage(float volts)
+{
+    auto milliVolts = static_cast<int>(volts * 1e3f);
+
+    if (milliVolts > 20000) milliVolts = 20000; 
+    if (milliVolts < 0) milliVolts = 0; 
+
+    QString cmd = "C";
+    cmd.append(QString::number(milliVolts));
+    cmd.append("\n\r");
+    sendString(cmd);
+
+    auto response = readLine();
+    if (!response)
+    {
+        qDebug() << "Serial write time-out";
+        return;
+    }
+
+    //qDebug() << "  response: " << response.value();
+
+    if (response->at(0) == '-')
+    {
+        qDebug() << "Error setting collector voltage";
+    }
+}
+
+SerialCtrl::MeasureResult SerialCtrl::measure()
+{
+    QString cmd = "M\n\r";
+    m_port->write(cmd.toUtf8());
+
+    // wait for reply
+    if (m_port->waitForBytesWritten(1000))
+    {        
+    }
+    else
+    {
+        qDebug() << "Serial write time-out";
+        return MeasureResult{};
+    }
+
+    QStringList responses;
+    for(int lines=0; lines<3; lines++)
+    {
+        auto lineOpt = readLine();
+        if (lineOpt)
+        {
+            //qDebug() << "  line: " << lineOpt.value();
+            responses.push_back(lineOpt.value());
+        }
+        else
+        {
+            qDebug() << "Time-out reading serial port";
+        }
+    }
+
+    if (responses.size() != 3)
+    {
+        qDebug() << "Error while taking measurement.";
+        return MeasureResult{};
+    }
+
+    if (responses.at(0).at(0) == '-')
+    {
+        qDebug() << "Error while taking measurement.";
+        return MeasureResult{};
+    }
+
+    MeasureResult result;
+    auto ok      = responses.at(0);
+    //auto gnd     = responses.at(1);
+    //auto vref2v5 = responses.at(2);
+    //auto vref5v0 = responses.at(3);
+    auto base    = responses.at(1);
+    auto emitter = responses.at(2);
+
+    //result.m_VREF_5V0 = vref5v0.toFloat() / 10000.0f;
+    //result.m_VREF_2V5 = vref2v5.toFloat() / 10000.0f;
+    result.m_Base     = base.toFloat() / 10000.0f;
+    result.m_Emitter  = emitter.toFloat() / 10000.0f;
+    result.m_valid    = true;
+
+    return result;
+}
+

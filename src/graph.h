@@ -78,6 +78,12 @@ public:
         update();
     }
 
+    void setUnitStrings(QString xUnitStr, QString yUnitStr)
+    {
+        m_xUnitStr = xUnitStr;
+        m_yUnitStr = yUnitStr;
+    }
+
     /** get number of traces - thread safe */
     size_t getNumberOfTraces() const;
 
@@ -100,6 +106,9 @@ protected:
         QString m_txt;
         QPointF m_pos;
     };
+
+    QString m_xUnitStr;
+    QString m_yUnitStr;
 
     struct TraceType
     {

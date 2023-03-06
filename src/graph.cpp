@@ -277,7 +277,8 @@ void Graph::drawMarker(QPainter &painter)
             auto textPos = nearestPos;
             textPos += QPoint(10, -10);
 
-            auto txt = QString::asprintf("%.3f (V), %.2f (mA)", iter->x(), iter->y() * 1000.0f);
+            auto txt = QString::asprintf("%g (%s), %g (%s)", iter->x(), m_xUnitStr.toStdString().c_str(), 
+                iter->y(), m_yUnitStr.toStdString().c_str());
 
             QFontMetrics fontMetrics(font());
             auto textBox = fontMetrics.boundingRect(txt);

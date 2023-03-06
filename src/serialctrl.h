@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 #include <memory>
+#include <optional>
+
 #include <QtSerialPort/QSerialPort>
 #include <QTimer>
 
@@ -23,11 +25,6 @@ public:
     bool isOpen() const;
     void close();
 
-protected slots:
-    //void handleReadyRead();
-    //void handleError(QSerialPort::SerialPortError error);
-    //void handleTimeout();
-
 protected:
     SerialCtrl(QSerialPort *port, QueueType &queue);
     
@@ -41,8 +38,23 @@ protected:
         return ((c >= '0') && (c <= '9')) || (c=='\t') || (c==' ');
     }
 
-    QueueType &m_queue;
+    void sendString(const QString &txt);
+    std::optional<QString> readLine();
 
+    struct MeasureResult
+    {
+        bool  m_valid = false;
+        float m_VREF_5V0;
+        float m_VREF_2V5;
+        float m_Emitter;    ///< emitter current shunt voltage
+        float m_Base;       ///< base voltage
+    };
+
+    void setBaseCurrent(float amperes);
+    void setCollectorVoltage(float volts);
+    MeasureResult measure();
+
+    QueueType &m_queue;
     std::unique_ptr<QSerialPort> m_port;
 };
 

@@ -13,7 +13,7 @@
 #include <QVariant>
 #include <QFileDialog>
 #include <QHBoxLayout>
-
+#include <QDebug>
 
 #include "mainwindow.h"
 #include "serialportdialog.h"
@@ -39,6 +39,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     hLayout->addWidget(m_graph, 5);  
 
     memset(&m_sweepSetup, 0, sizeof(m_sweepSetup));
+    m_sweepSetup.m_diode.m_startCurrent = 0;
+    m_sweepSetup.m_diode.m_stopCurrent = 5e-3;
+    m_sweepSetup.m_points = 50;
+
+    m_timer = new QTimer();
+    connect(m_timer, &QTimer::timeout, this, &MainWindow::onMeasurementTimer);
+    m_timer->start(250);
 }
 
 MainWindow::~MainWindow()
@@ -100,97 +107,6 @@ void MainWindow::createMenus()
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(m_aboutAction);
-}
-
-#if 0
-bool MainWindow::event(QEvent *event)
-{
-    if(event->type() == QEvent::User)
-    {
-        auto evt = static_cast<DataEvent*>(event);
-        switch(evt->dataType())
-        {
-        case DataEvent::DataType::Base:
-            handleBaseData(evt->data());
-            break;
-        case DataEvent::DataType::Collector:
-            handleCollectorData(evt->data());
-            break;
-        case DataEvent::DataType::Diode:
-            handleDiodeData(evt->data());
-            break;            
-        case DataEvent::DataType::EndSweep:
-            // add label to the curve
-            m_graph->addLabel(QString::asprintf("%.2f uA", m_baseCurrent*1.0e6f),
-                m_lastCurvePoint);            
-            break;
-        case DataEvent::DataType::StartSweep:
-            {
-                size_t numberOfTraces = m_graph->newTrace();
-
-                auto item = new QListWidgetItem();
-                item->setFlags(Qt::ItemIsEditable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-                item->setData(Qt::DisplayRole, QString::asprintf("Trace %ld", numberOfTraces));
-                item->setData(Qt::UserRole, static_cast<int>(numberOfTraces));
-
-                QImage image(12,12, QImage::Format::Format_RGB888);
-                QPainter painter(&image);
-                painter.setPen(Qt::black);
-                painter.setBrush(QColor(m_graph->traces().back().m_color));
-                auto r = image.rect();
-                r.adjust(0,0,-1,-1);
-                painter.drawRect(r);
-                auto pixmap = QPixmap::fromImage(image);
-                item->setIcon(QIcon(pixmap));
-
-                m_traceList->addItem(item);
-            }
-            break;
-        default:
-            return false;
-        }
-
-        return true;        
-    }
-    
-    return QMainWindow::event(event);
-}
-#endif
-
-void MainWindow::handleBaseData(const std::string &data)
-{
-    int32_t v1,v2;
-    sscanf(data.c_str(), "%d\t%d", &v1, &v2);
-
-    //m_baseCurrent = (v1-v2) / 3300.0f / 256.0f / 1024.0f * 5.0f;
-    //std::cout << "Base: " << v1 << " " << v2 << " -> " << m_baseCurrent*1.0e6 << "uA \n";
-    //std::cout << std::flush;
-}
-
-void MainWindow::handleDiodeData(const std::string &data)
-{
-    int32_t v1,v2;
-    sscanf(data.c_str(), "%d\t%d", &v1, &v2);    
-
-    float collectorCurrent = (v1-v2) / 1000.0f / 256.0f / 1024.0f * 5.0f;
-    float collectorVoltage = v2 / 256.0f / 1024.0f * 5.0f;    
-
-    m_lastCurvePoint = QPointF(collectorVoltage, collectorCurrent);
-    m_graph->addDataPoint(m_lastCurvePoint);    
-}
-
-void MainWindow::handleCollectorData(const std::string &data)
-{
-    int32_t v1,v2;
-    sscanf(data.c_str(), "%d\t%d", &v1, &v2);
-
-    float collectorCurrent = (v1-v2) / 1000.0f / 256.0f / 1024.0f * 5.0f;
-    float collectorVoltage = v2 / 256.0f / 1024.0f * 5.0f;
-    //std::cout << "Collector: " << v1 << " " << v2 << " -> " << collectorCurrent*1.0e6 << " uA   voltage: " << collectorVoltage << " V\n";
-    //std::cout << std::flush;
-
-    m_lastCurvePoint = QPointF(collectorVoltage, collectorCurrent);
-    m_graph->addDataPoint(m_lastCurvePoint);
 }
 
 void MainWindow::onSave()
@@ -302,74 +218,45 @@ void MainWindow::onDisconnect()
     }
 }
 
-void MainWindow::onSweepDiode()
+void MainWindow::onMeasurementTimer()
 {
-#if 0    
-    if (!m_persistance)
+    while (m_traceResults.hasMessages())
     {
-        m_graph->clearData();
-        m_traceList->clear();
-    }
+        auto msg = m_traceResults.pop();
 
-    if (m_serial)
-    {   
-        //m_serial->setBasePWM(0, false);
-        //m_serial->setBasePWM(0);
-        //m_serial->sweepDiode(0,1023, 10);
-        m_serial->run();
+        // diode only
+        // base current, versus base voltage
+        QPointF p(msg.m_baseCurrent, msg.m_baseVoltage);
+        m_graph->addDataPoint(p);
     }
-#endif    
 }
 
 void MainWindow::onSweepTransistor()
 {
-#if 0    
     if (!m_persistance)
     {
         m_graph->clearData();
         m_traceList->clear();
     }
 
-    if (!m_serial)
+    m_sweepSetup.m_sweepType = Messages::SweepType::BJT_Collector;
+    m_graph->setUnitStrings("V", "V");
+    createNewTrace();
+    m_serial->doSweep(m_sweepSetup);  
+}
+
+void MainWindow::onSweepDiode()
+{
+    if (!m_persistance)
     {
-        return;
+        m_graph->clearData();
+        m_traceList->clear();
     }
 
-    m_sweepSetup.m_points = std::max(1U, m_sweepSetup.m_points);
-    float baseCurrentStep = 0.0f;
-    if (m_sweepSetup.m_numberOfTraces > 1)
-    {
-        baseCurrentStep = (m_sweepSetup.m_baseCurrentStop - m_sweepSetup.m_baseCurrentStart) / (m_sweepSetup.m_numberOfTraces-1);
-    }
-    
-    const float totalBaseResistance = m_sweepSetup.m_baseLimitResistor + m_sweepSetup.m_baseSenseResistor;
-
-    for(uint32_t sweep = 0; sweep < m_sweepSetup.m_numberOfTraces; sweep++)
-    {   
-        // calculate the required PWM / voltage to achieve the
-        // desired base current (in uA)
-
-        float desiredBaseCurrent = static_cast<float>(m_sweepSetup.m_baseCurrentStart) + static_cast<float>(sweep)*baseCurrentStep;
-
-        std::cout << "Base current    : " << desiredBaseCurrent << " uA\n";
-
-        float baseVoltage = (desiredBaseCurrent*1e-6f) * (totalBaseResistance*1e3f);
-        baseVoltage += 0.65f;
-
-        int32_t pwm = static_cast<int32_t>((baseVoltage / 5.0f) * 1023);
-        pwm = std::max(pwm, 0);
-        pwm = std::min(pwm, 1023);
-
-        std::cout << "Base PWM voltage: " << baseVoltage << "  pwm = " << pwm << "\n";
-
-        //m_serial->setBasePWM(pwm, false);
-        //m_serial->setBasePWM(pwm, false);
-        //m_serial->setBasePWM(pwm);
-        //m_serial->sweepCollector(0,1023, 10);        
-    }
-
-    m_serial->run();
-#endif
+    m_sweepSetup.m_sweepType = Messages::SweepType::Diode;
+    m_graph->setUnitStrings("A", "V");
+    createNewTrace();
+    m_serial->doSweep(m_sweepSetup);
 }
 
 void MainWindow::onSelectedTraceChanged()
@@ -392,4 +279,30 @@ void MainWindow::onClearTraces()
 void MainWindow::onAbout()
 {
     QMessageBox::aboutQt(this);
+}
+
+void MainWindow::createNewTrace()
+{
+    auto numberOfTraces = m_graph->newTrace();
+    auto item = new QListWidgetItem();
+    item->setFlags(Qt::ItemIsEditable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+    item->setData(Qt::DisplayRole, QString::asprintf("Trace %ld", numberOfTraces));
+    item->setData(Qt::UserRole, static_cast<int>(numberOfTraces));
+
+    QImage image(12,12, QImage::Format::Format_RGB888);
+    QPainter painter(&image);
+    painter.setPen(Qt::black);
+    painter.setBrush(QColor(m_graph->traces().back().m_color));
+    auto r = image.rect();
+    r.adjust(0,0,-1,-1);
+    painter.drawRect(r);
+    auto pixmap = QPixmap::fromImage(image);
+    item->setIcon(QIcon(pixmap));
+
+    m_traceList->addItem(item);
+
+    if (numberOfTraces == 1)
+    {
+        m_graph->selectTrace(0);
+    }
 }

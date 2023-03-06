@@ -23,24 +23,24 @@ namespace Messages
     /** sweep the diode current */
     struct SweepDiode
     {
-        float m_startCurrent;
-        float m_stopCurrent;
+        float m_startCurrent;   ///< Amperes (max 5 mA)
+        float m_stopCurrent;    ///< Amperes (max 5 mA)
     };
 
     /** sweep collector voltage while having a constant base current */
     struct SweepCollector
     {
-        float m_startVoltage;
-        float m_stopVoltage;
-        float m_baseCurrent; 
+        float m_startVoltage;   ///< Volts (max 20 V)
+        float m_stopVoltage;    ///< Volts (max 20 V)
+        float m_baseCurrent;    ///< Amperes (max 5 mA)
     };
 
     /** sweep the base current while having a constant collector voltage */
     struct SweepBase
     {
-        float m_startCurrent;
-        float m_stopCurrent;
-        float m_collectorVoltage;
+        float m_startCurrent;       ///< Amperes (max 5 mA)
+        float m_stopCurrent;        ///< Amperes (max 5 mA)
+        float m_collectorVoltage;   ///< Volts (max 20 V)
     };
 
     struct SweepSetup

@@ -12,7 +12,9 @@
 
 #include "sweepdialog.h"
 
-static const double c_MaxBaseCurrent = 5000.0;
+static const double c_ampsToMilliAmps = 1e3;
+static const double c_milliAmpsToAmps = 1e-3;
+static const double c_MaxBaseCurrent  = 5000.0;
 static const double c_MaxCollectorVoltage = 20.0;
 static const int c_MaxPoints = 1000;
 
@@ -53,8 +55,8 @@ Messages::SweepBase SweepPage::Base::get() const noexcept
     try
     {
         data.m_collectorVoltage = std::stof(m_collectorVoltageEdit->text().toStdString());
-        data.m_startCurrent = std::stof(m_baseStartEdit->text().toStdString());
-        data.m_stopCurrent  = std::stof(m_baseStopEdit->text().toStdString());
+        data.m_startCurrent = std::stof(m_baseStartEdit->text().toStdString()) * c_milliAmpsToAmps;
+        data.m_stopCurrent  = std::stof(m_baseStopEdit->text().toStdString()) * c_milliAmpsToAmps;
         return data;
     }
     catch(std::invalid_argument(const std::string &what))
@@ -65,8 +67,8 @@ Messages::SweepBase SweepPage::Base::get() const noexcept
 
 void SweepPage::Base::populate(const Messages::SweepBase &base)
 {
-    m_baseStartEdit->setText(QString::number(base.m_startCurrent));
-    m_baseStopEdit->setText(QString::number(base.m_stopCurrent));
+    m_baseStartEdit->setText(QString::number(base.m_startCurrent * c_ampsToMilliAmps));
+    m_baseStopEdit->setText(QString::number(base.m_stopCurrent * c_ampsToMilliAmps));
     m_collectorVoltageEdit->setText(QString::number(base.m_collectorVoltage));
 }
 
@@ -108,7 +110,7 @@ Messages::SweepCollector SweepPage::Collector::get() const noexcept
     {
         data.m_startVoltage = std::stof(m_collectorStartEdit->text().toStdString());
         data.m_stopVoltage  = std::stof(m_collectorStopEdit->text().toStdString());
-        data.m_baseCurrent  = std::stof(m_baseCurrentEdit->text().toStdString());
+        data.m_baseCurrent  = std::stof(m_baseCurrentEdit->text().toStdString()) * c_milliAmpsToAmps;
         return data;
     }
     catch(std::invalid_argument(const std::string &what))
@@ -121,7 +123,7 @@ void SweepPage::Collector::populate(const Messages::SweepCollector &collector)
 {
     m_collectorStartEdit->setText(QString::number(collector.m_startVoltage));
     m_collectorStopEdit->setText(QString::number(collector.m_stopVoltage));
-    m_baseCurrentEdit->setText(QString::number(collector.m_baseCurrent));
+    m_baseCurrentEdit->setText(QString::number(collector.m_baseCurrent * c_ampsToMilliAmps));
 }
 
 SweepPage::Diode::Diode(QWidget *parent) : QWidget(parent)
@@ -153,8 +155,8 @@ Messages::SweepDiode SweepPage::Diode::get() const noexcept
 
     try
     {
-        data.m_startCurrent = std::stof(m_currentStartEdit->text().toStdString());
-        data.m_stopCurrent  = std::stof(m_currentStopEdit->text().toStdString());
+        data.m_startCurrent = std::stof(m_currentStartEdit->text().toStdString())*c_milliAmpsToAmps;
+        data.m_stopCurrent  = std::stof(m_currentStopEdit->text().toStdString())*c_milliAmpsToAmps;
         return data;
     }
     catch(std::invalid_argument(const std::string &what))
@@ -165,10 +167,9 @@ Messages::SweepDiode SweepPage::Diode::get() const noexcept
 
 void SweepPage::Diode::populate(const Messages::SweepDiode &diode)
 {
-    m_currentStartEdit->setText(QString::number(diode.m_startCurrent));
-    m_currentStopEdit->setText(QString::number(diode.m_stopCurrent));
+    m_currentStartEdit->setText(QString::number(diode.m_startCurrent * c_ampsToMilliAmps));
+    m_currentStopEdit->setText(QString::number(diode.m_stopCurrent * c_ampsToMilliAmps));
 }
-
 
 SweepDialog::SweepDialog(const Messages::SweepSetup &setup, QWidget *parent) : QDialog(parent), m_setup(setup)
 {
