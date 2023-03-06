@@ -13,6 +13,7 @@ find_package(Qt5 COMPONENTS Widgets SerialPort REQUIRED)
 find_package(Threads)
 
 set(SRC 
+    src/messagequeue.cpp
     src/tracecolors.cpp
     src/graph.cpp
     src/sweepdialog.cpp
@@ -23,4 +24,3 @@ set(SRC
 
 add_executable(curvetracer ${SRC})
 target_link_libraries(curvetracer Qt5::Widgets Qt5::SerialPort Threads::Threads)
-
