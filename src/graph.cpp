@@ -4,6 +4,7 @@
 #include <cmath>
 #include <algorithm>
 #include <QPainter>
+#include <QDebug>
 
 #include "tracecolors.h"
 
@@ -89,6 +90,8 @@ QPointF PlotRect::screenToGraph(const QPointF &p) const
 
 Graph::Graph(QWidget *parent) : QWidget(parent)
 {
+    setFocusPolicy(Qt::StrongFocus);
+
     clearData();
 
     m_graphMargins.m_left   = 80;
@@ -235,10 +238,11 @@ void Graph::paintEvent(QPaintEvent *event)
     
     plotLabels(painter);
 
-    drawMarker(painter);
+    drawCursor(painter);
+    drawMarkers(painter);
 }
 
-void Graph::drawMarker(QPainter &painter)
+void Graph::drawCursor(QPainter &painter)
 {
     if ((!m_cursorPos.isNull()) && (m_selectedTrace >=0) && (m_selectedTrace < m_traces.size()))
     {
@@ -268,6 +272,9 @@ void Graph::drawMarker(QPainter &painter)
             {
                 iter = trace.m_data.begin() + trace.m_data.size()-1;
             }
+
+            m_lastCursorPos = QPointF{iter->x(), iter->y()};
+            m_lastCursorPosValid = true;
 
             auto nearestPos = m_plotRect.graphToScreen(QPointF{iter->x(), iter->y()});
             painter.setPen(cursorPen);
@@ -423,6 +430,64 @@ void Graph::plotAxes(QPainter &painter)
     }
 }
 
+void Graph::drawMarkers(QPainter &painter)
+{
+    if (m_markerA.m_valid)
+    {
+        auto mAPos = m_plotRect.graphToScreen(m_markerA.m_point);
+        painter.setPen(Qt::white);
+        painter.drawEllipse(mAPos, 4,4);
+    }
+    if (m_markerB.m_valid)
+    {
+        auto mBPos = m_plotRect.graphToScreen(m_markerB.m_point);
+        
+        painter.setPen(QPen(Qt::white, 1));
+        painter.drawEllipse(mBPos, 4,4);
+    }
+    
+    if ((m_markerA.m_valid) && (m_markerB.m_valid))
+    {
+        auto p1 = m_markerA.m_point;
+        auto p2 = m_markerB.m_point;
+        if (p1.x() > p2.x())
+        {
+            std::swap(p1,p2);
+        }
+
+        float dx = p2.x() - p1.x();
+        float dy = p2.y() - p1.y();
+
+        if (dx < 1e-6f) return;    // x distance too small for drawing a line?
+
+        // calculate x intercept point
+        float c = dy/dx;
+        float offset = p1.y() - c*p1.x();
+
+        float x_intercept = -offset / c;
+
+        QString txt = "X intercept = ";
+        txt.append(QString::number(x_intercept, 'g',3));
+
+        auto mAPos = m_plotRect.graphToScreen(m_markerA.m_point);
+        auto mBPos = m_plotRect.graphToScreen(m_markerB.m_point);
+
+        // make sure the text is positioned 
+        // above the line
+        QPointF txtpos = mAPos;
+        if (txtpos.y() > mBPos.y())
+        {
+            txtpos = mBPos;
+            txtpos.ry() -= 12;
+        }
+
+        painter.drawText(txtpos, txt);
+
+        painter.setPen(QPen(Qt::white, 3));
+        painter.drawLine(mAPos, mBPos);
+    }
+}
+
 #if 0
 
 QPointF Graph::graphToScreen(float x, float y) const
@@ -546,4 +611,32 @@ void Graph::wheelEvent(QWheelEvent *event)
     }    
 
     event->accept();
+}
+
+void Graph::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key()==Qt::Key_A)
+    {
+        qDebug() << "A";
+        if (m_lastCursorPosValid)
+        {
+            m_markerA.m_point = m_lastCursorPos;
+            m_markerA.m_valid = true;
+            update();
+        }
+    }    
+    else if (event->key()==Qt::Key_B)
+    {
+        if (m_lastCursorPosValid)
+        {
+            m_markerB.m_point = m_lastCursorPos;
+            m_markerB.m_valid = true;
+            update();
+        }
+    }        
+    else if (event->key()==Qt::Key_C)
+    {
+        m_markerA.m_valid = false;
+        m_markerB.m_valid = false;
+    }            
 }

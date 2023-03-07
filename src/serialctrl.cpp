@@ -134,6 +134,7 @@ void SerialCtrl::doSweep(const Messages::SweepSetup &sweep)
                 p.m_baseVoltage = data.m_Base - data.m_Emitter;
                 p.m_collectorVoltage = 0; // not applicable
                 p.m_emitterCurrent = data.m_Emitter / currentShuntR;
+                p.m_emitterVoltage = data.m_Emitter;
                 m_queue.push(std::move(p));
 #if 0
                 qDebug() << "  Base current     : " << p.m_baseCurrent;
@@ -146,9 +147,13 @@ void SerialCtrl::doSweep(const Messages::SweepSetup &sweep)
             else
             {
                 qDebug("Diode sweep aborted due to error");
+                setBaseCurrent(0);
+                setCollectorVoltage(0);
                 return;
             }
         }
+        setBaseCurrent(0);
+        setCollectorVoltage(0);
         break;
     case Messages::SweepType::BJT_Base:
         qDebug() << "Starting BJT base sweep..";
@@ -178,6 +183,7 @@ void SerialCtrl::doSweep(const Messages::SweepSetup &sweep)
                 p.m_baseVoltage = data.m_Base - data.m_Emitter;
                 p.m_collectorVoltage = voltage;
                 p.m_emitterCurrent = data.m_Emitter / currentShuntR;
+                p.m_emitterVoltage = data.m_Emitter;
                 m_queue.push(std::move(p));
 #if 0
                 qDebug() << "  Base current     : " << p.m_baseCurrent;
@@ -189,10 +195,14 @@ void SerialCtrl::doSweep(const Messages::SweepSetup &sweep)
             }
             else
             {
-                qDebug("Diode sweep aborted due to error");
+                qDebug("Collector sweep aborted due to error");
+                setBaseCurrent(0);
+                setCollectorVoltage(0);                        
                 return;
             }
         }
+        setBaseCurrent(0);
+        setCollectorVoltage(0);        
         break;
     default:
         qDebug() << "Invalid sweep type";
@@ -300,14 +310,9 @@ SerialCtrl::MeasureResult SerialCtrl::measure()
 
     MeasureResult result;
     auto ok      = responses.at(0);
-    //auto gnd     = responses.at(1);
-    //auto vref2v5 = responses.at(2);
-    //auto vref5v0 = responses.at(3);
     auto base    = responses.at(1);
     auto emitter = responses.at(2);
 
-    //result.m_VREF_5V0 = vref5v0.toFloat() / 10000.0f;
-    //result.m_VREF_2V5 = vref2v5.toFloat() / 10000.0f;
     result.m_Base     = base.toFloat() / 10000.0f;
     result.m_Emitter  = emitter.toFloat() / 10000.0f;
     result.m_valid    = true;

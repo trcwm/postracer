@@ -7,6 +7,9 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
     QApplication::setAttribute(Qt::AA_DontUseNativeMenuBar);
 
+    QLocale::setDefault(QLocale::C);
+    setlocale(LC_NUMERIC, "C");
+
     MainWindow window(nullptr);
 
     window.show();

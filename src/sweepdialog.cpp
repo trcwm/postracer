@@ -2,6 +2,7 @@
 #include <QGroupBox>
 #include <QStaticText>
 #include <QLabel>
+#include <QDebug>
 #include <QDoubleValidator>
 #include <QIntValidator>
 #include <QDialogButtonBox>
@@ -9,6 +10,7 @@
 #include <QAbstractItemView>
 
 #include <stdexcept>
+#include <iostream>
 
 #include "sweepdialog.h"
 
@@ -121,9 +123,9 @@ Messages::SweepCollector SweepPage::Collector::get() const noexcept
 
 void SweepPage::Collector::populate(const Messages::SweepCollector &collector)
 {
-    m_collectorStartEdit->setText(QString::number(collector.m_startVoltage));
-    m_collectorStopEdit->setText(QString::number(collector.m_stopVoltage));
-    m_baseCurrentEdit->setText(QString::number(collector.m_baseCurrent * c_ampsToMilliAmps));
+    m_collectorStartEdit->setText(QString::number(collector.m_startVoltage, 'g', 6));
+    m_collectorStopEdit->setText(QString::number(collector.m_stopVoltage, 'g', 6));
+    m_baseCurrentEdit->setText(QString::number(collector.m_baseCurrent * c_ampsToMilliAmps, 'g', 6));
 }
 
 SweepPage::Diode::Diode(QWidget *parent) : QWidget(parent)

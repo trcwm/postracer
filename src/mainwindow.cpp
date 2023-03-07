@@ -41,7 +41,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     memset(&m_sweepSetup, 0, sizeof(m_sweepSetup));
     m_sweepSetup.m_diode.m_startCurrent = 0;
     m_sweepSetup.m_diode.m_stopCurrent = 5e-3;
-    m_sweepSetup.m_points = 50;
+    m_sweepSetup.m_points = 100;
+
+    m_sweepSetup.m_collector.m_baseCurrent = 0.1e-3;
+    m_sweepSetup.m_collector.m_startVoltage = 0;
+    m_sweepSetup.m_collector.m_stopVoltage = 20;
 
     m_timer = new QTimer();
     connect(m_timer, &QTimer::timeout, this, &MainWindow::onMeasurementTimer);
@@ -224,10 +228,24 @@ void MainWindow::onMeasurementTimer()
     {
         auto msg = m_traceResults.pop();
 
-        // diode only
-        // base current, versus base voltage
-        QPointF p(msg.m_baseCurrent, msg.m_baseVoltage);
-        m_graph->addDataPoint(p);
+        switch(m_sweepSetup.m_sweepType)
+        {
+        case Messages::SweepType::Diode:
+            {
+                // base current, versus base voltage
+                QPointF p(msg.m_baseCurrent, msg.m_baseVoltage);
+                m_graph->addDataPoint(p);
+            }
+            break;
+        case Messages::SweepType::BJT_Collector:
+            // base current, versus Vce
+            {
+                float Vce = msg.m_collectorVoltage - msg.m_emitterVoltage;
+                QPointF p(Vce, msg.m_emitterCurrent);
+                m_graph->addDataPoint(p);
+            }            
+            break;
+        }
     }
 }
 
@@ -240,7 +258,7 @@ void MainWindow::onSweepTransistor()
     }
 
     m_sweepSetup.m_sweepType = Messages::SweepType::BJT_Collector;
-    m_graph->setUnitStrings("V", "V");
+    m_graph->setUnitStrings("Vce V", "Ie A");
     createNewTrace();
     m_serial->doSweep(m_sweepSetup);  
 }
@@ -254,7 +272,7 @@ void MainWindow::onSweepDiode()
     }
 
     m_sweepSetup.m_sweepType = Messages::SweepType::Diode;
-    m_graph->setUnitStrings("A", "V");
+    m_graph->setUnitStrings("Id A", "Vd V");
     createNewTrace();
     m_serial->doSweep(m_sweepSetup);
 }

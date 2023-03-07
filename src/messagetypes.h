@@ -9,6 +9,7 @@ namespace Messages
         float m_baseVoltage;            ///< Volts
         float m_collectorVoltage;       ///< Volts
         float m_emitterCurrent;         ///< Amperes
+        float m_emitterVoltage;         ///< Volts
         std::string m_version;          ///< verion string, if requested
     };
 

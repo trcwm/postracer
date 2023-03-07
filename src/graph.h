@@ -4,6 +4,7 @@
 #include <vector>
 #include <QWidget>
 #include <QMouseEvent>
+#include <QKeyEvent>
 
 /** helper class that plots a data traces */
 class PlotRect
@@ -70,11 +71,16 @@ public:
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
 
+    void keyPressEvent(QKeyEvent *event) override;
+
     void resizeEvent(QResizeEvent *event) override;
 
     void selectTrace(int32_t trace)
     {
         m_selectedTrace = trace;
+        m_lastCursorPosValid = false;
+        m_markerA.m_valid = false;
+        m_markerB.m_valid = false;
         update();
     }
 
@@ -98,7 +104,8 @@ protected:
 
     void plotAxes(QPainter &painter);
     void plotLabels(QPainter &painter);
-    void drawMarker(QPainter &painter);
+    void drawCursor(QPainter &painter);
+    void drawMarkers(QPainter &painter);
     void updatePlotRectSize();
 
     struct LabelType
@@ -109,6 +116,17 @@ protected:
 
     QString m_xUnitStr;
     QString m_yUnitStr;
+
+    struct MarkerInfo
+    {
+        bool m_valid = false;
+        QPointF m_point;        ///< point in graph space
+    };
+
+    bool       m_lastCursorPosValid = false;
+    QPointF    m_lastCursorPos;
+    MarkerInfo m_markerA;
+    MarkerInfo m_markerB;
 
     struct TraceType
     {
