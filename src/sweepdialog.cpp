@@ -106,13 +106,14 @@ Messages::SweepCollector SweepPage::Collector::get() const noexcept
     Messages::SweepCollector data;
     data.m_startVoltage=0;
     data.m_stopVoltage=0;
-    data.m_baseCurrent=0;
+    data.m_baseCurrents.push_back(0.0f);
     
     try
     {
         data.m_startVoltage = std::stof(m_collectorStartEdit->text().toStdString());
         data.m_stopVoltage  = std::stof(m_collectorStopEdit->text().toStdString());
-        data.m_baseCurrent  = std::stof(m_baseCurrentEdit->text().toStdString()) * c_milliAmpsToAmps;
+        data.m_baseCurrents.clear();
+        data.m_baseCurrents.push_back(std::stof(m_baseCurrentEdit->text().toStdString()) * c_milliAmpsToAmps);
         return data;
     }
     catch(std::invalid_argument(const std::string &what))
@@ -125,7 +126,10 @@ void SweepPage::Collector::populate(const Messages::SweepCollector &collector)
 {
     m_collectorStartEdit->setText(QString::number(collector.m_startVoltage, 'g', 6));
     m_collectorStopEdit->setText(QString::number(collector.m_stopVoltage, 'g', 6));
-    m_baseCurrentEdit->setText(QString::number(collector.m_baseCurrent * c_ampsToMilliAmps, 'g', 6));
+    if (!collector.m_baseCurrents.empty())
+    {
+        m_baseCurrentEdit->setText(QString::number(collector.m_baseCurrents.front() * c_ampsToMilliAmps, 'g', 6));
+    }
 }
 
 SweepPage::Diode::Diode(QWidget *parent) : QWidget(parent)

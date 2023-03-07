@@ -66,6 +66,9 @@ public:
     void addDataPoint(const QPointF &p);
     void addLabel(const QString &txt, const QPointF &p);
 
+    /** add a label at the last graph point */
+    void addLabel(const QString &txt);
+
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

@@ -140,9 +140,16 @@ size_t Graph::getNumberOfTraces() const
     return m_traces.size();
 }
 
-
 void Graph::addLabel(const QString &txt, const QPointF &p)
 {
+    m_labels.push_back(LabelType{.m_txt = txt, .m_pos = p});
+}
+
+void Graph::addLabel(const QString &txt)
+{
+    if (m_traces.size() == 0) return;
+
+    auto p = m_traces.back().m_data.back();
     m_labels.push_back(LabelType{.m_txt = txt, .m_pos = p});
 }
 

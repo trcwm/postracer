@@ -11,6 +11,7 @@ namespace Messages
         float m_emitterCurrent;         ///< Amperes
         float m_emitterVoltage;         ///< Volts
         std::string m_version;          ///< verion string, if requested
+        std::string m_label;            ///< label text to add at end of sweep
     };
 
     enum class SweepType
@@ -33,7 +34,7 @@ namespace Messages
     {
         float m_startVoltage;   ///< Volts (max 20 V)
         float m_stopVoltage;    ///< Volts (max 20 V)
-        float m_baseCurrent;    ///< Amperes (max 5 mA)
+        std::vector<float> m_baseCurrents;    ///< Amperes (max 5 mA)
     };
 
     /** sweep the base current while having a constant collector voltage */

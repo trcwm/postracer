@@ -43,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_sweepSetup.m_diode.m_stopCurrent = 5e-3;
     m_sweepSetup.m_points = 100;
 
-    m_sweepSetup.m_collector.m_baseCurrent = 0.1e-3;
+    m_sweepSetup.m_collector.m_baseCurrents.push_back(0.1e-3f);
     m_sweepSetup.m_collector.m_startVoltage = 0;
     m_sweepSetup.m_collector.m_stopVoltage = 20;
 
@@ -73,8 +73,8 @@ void MainWindow::createActions()
     m_sweepDiodeAction = new QAction("Diode");
     connect(m_sweepDiodeAction, &QAction::triggered, this, &MainWindow::onSweepDiode);
 
-    m_sweepTransistorAction = new QAction("Transistor");
-    connect(m_sweepTransistorAction, &QAction::triggered, this, &MainWindow::onSweepTransistor);
+    m_sweepTransistorAction = new QAction("BJT VCE");
+    connect(m_sweepTransistorAction, &QAction::triggered, this, &MainWindow::onSweepVCE);
     
     m_persistanceAction = new QAction("Trace persistance");
     m_persistanceAction->setCheckable(true);
@@ -243,13 +243,17 @@ void MainWindow::onMeasurementTimer()
                 float Vce = msg.m_collectorVoltage - msg.m_emitterVoltage;
                 QPointF p(Vce, msg.m_emitterCurrent);
                 m_graph->addDataPoint(p);
+                if (!msg.m_label.empty())
+                {
+                    m_graph->addLabel(QString().fromStdString(msg.m_label));
+                }
             }            
             break;
         }
     }
 }
 
-void MainWindow::onSweepTransistor()
+void MainWindow::onSweepVCE()
 {
     if (!m_persistance)
     {
@@ -260,7 +264,15 @@ void MainWindow::onSweepTransistor()
     m_sweepSetup.m_sweepType = Messages::SweepType::BJT_Collector;
     m_graph->setUnitStrings("Vce V", "Ie A");
     createNewTrace();
-    m_serial->doSweep(m_sweepSetup);  
+    m_serial->doSweep(m_sweepSetup);
+
+#if 0
+    std::thread t([]()
+    {
+        
+        std::cout << "thread function\n";
+    });    
+#endif
 }
 
 void MainWindow::onSweepDiode()

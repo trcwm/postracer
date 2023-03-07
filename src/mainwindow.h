@@ -24,7 +24,7 @@ signals:
 public slots:
     void onSweepSetup();
     void onSweepDiode();
-    void onSweepTransistor();
+    void onSweepVCE();
     void onConnect();
     void onDisconnect();
     void onQuit();

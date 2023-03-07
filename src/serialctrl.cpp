@@ -78,11 +78,9 @@ void SerialCtrl::close()
 
 void SerialCtrl::sendString(const QString &txt)
 {
-    if (m_port)
-    {
-        m_port->write(txt.toUtf8());
-    }
+    if (!m_port) return;
 
+    m_port->write(txt.toUtf8());
     // wait for reply
     if (m_port->waitForBytesWritten(1000))
     {        
@@ -97,6 +95,7 @@ void SerialCtrl::sendString(const QString &txt)
 std::optional<QString> SerialCtrl::readLine()
 {
     QByteArray responseData;
+    if (!m_port) return;
     while (m_port->bytesAvailable() || m_port->waitForReadyRead(1000))
     {
         auto byte = m_port->read(1);
@@ -112,6 +111,7 @@ std::optional<QString> SerialCtrl::readLine()
 
 void SerialCtrl::doSweep(const Messages::SweepSetup &sweep)
 {
+    std::size_t count = 0;
     Profiling::Timer profiling("doSweep");
 
     const float currentShuntR = 1.5f;  // estimated
@@ -163,46 +163,60 @@ void SerialCtrl::doSweep(const Messages::SweepSetup &sweep)
         }    
         break;
     case Messages::SweepType::BJT_Collector:
-        qDebug() << "Starting BJT collector sweep..";
-
-        setBaseCurrent(sweep.m_collector.m_baseCurrent);
-
-        for(int pt=0; pt<sweep.m_points; pt++)
         {
-            float frac = static_cast<float>(pt)/(sweep.m_points-1.0f);
-            auto voltage = sweep.m_collector.m_startVoltage +
-                frac*(sweep.m_collector.m_stopVoltage - sweep.m_collector.m_startVoltage);
-            
-            setCollectorVoltage(voltage);
+            qDebug() << "Starting BJT collector sweep..";
 
-            auto data = measure();
-            if (data.m_valid)
+            float baseCurrent = sweep.m_collector.m_baseCurrents.front();
+            setBaseCurrent(baseCurrent);
+            
+            for(int pt=0; pt<sweep.m_points; pt++)
             {
-                Messages::DataPoint p;
-                p.m_baseCurrent = sweep.m_collector.m_baseCurrent;
-                p.m_baseVoltage = data.m_Base - data.m_Emitter;
-                p.m_collectorVoltage = voltage;
-                p.m_emitterCurrent = data.m_Emitter / currentShuntR;
-                p.m_emitterVoltage = data.m_Emitter;
-                m_queue.push(std::move(p));
-#if 0
-                qDebug() << "  Base current     : " << p.m_baseCurrent;
-                qDebug() << "  Base voltage     : " << p.m_baseVoltage;
-                qDebug() << "  Collector voltage: " << p.m_collectorVoltage;
-                qDebug() << "  Emitter voltage  : " << data.m_Emitter;
-                qDebug() << "  Emitter current  : " << p.m_emitterCurrent;
-#endif                
+                count++;
+
+                float frac = static_cast<float>(pt)/(sweep.m_points-1.0f);
+                auto voltage = sweep.m_collector.m_startVoltage +
+                    frac*(sweep.m_collector.m_stopVoltage - sweep.m_collector.m_startVoltage);
+                
+                setCollectorVoltage(voltage);
+
+                auto data = measure();
+                if (data.m_valid)
+                {
+                    Messages::DataPoint p;
+                    p.m_baseCurrent = baseCurrent;
+                    p.m_baseVoltage = data.m_Base - data.m_Emitter;
+                    p.m_collectorVoltage = voltage;
+                    p.m_emitterCurrent = data.m_Emitter / currentShuntR;
+                    p.m_emitterVoltage = data.m_Emitter;
+
+                    if (count == sweep.m_points)
+                    {
+                        std::stringstream ss;
+                        ss << "Ib = " << baseCurrent * 1000.0f << " mA";
+                        p.m_label = ss.str();
+                    }
+
+                    m_queue.push(std::move(p));
+    #if 0
+                    qDebug() << "  Base current     : " << p.m_baseCurrent;
+                    qDebug() << "  Base voltage     : " << p.m_baseVoltage;
+                    qDebug() << "  Collector voltage: " << p.m_collectorVoltage;
+                    qDebug() << "  Emitter voltage  : " << data.m_Emitter;
+                    qDebug() << "  Emitter current  : " << p.m_emitterCurrent;
+    #endif          
+
+                }
+                else
+                {
+                    qDebug("Collector sweep aborted due to error");
+                    setBaseCurrent(0);
+                    setCollectorVoltage(0);                        
+                    return;
+                }
             }
-            else
-            {
-                qDebug("Collector sweep aborted due to error");
-                setBaseCurrent(0);
-                setCollectorVoltage(0);                        
-                return;
-            }
+            setBaseCurrent(0);
+            setCollectorVoltage(0);
         }
-        setBaseCurrent(0);
-        setCollectorVoltage(0);        
         break;
     default:
         qDebug() << "Invalid sweep type";
