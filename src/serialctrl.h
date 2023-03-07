@@ -28,6 +28,10 @@ public:
 protected:
     SerialCtrl(QSerialPort *port, QueueType &queue);
     
+    void sweepDiode(const Messages::SweepSetup &sweep);
+    void sweepBJT_VCE(const Messages::SweepSetup &sweep);
+    void sweepBJT_Base(const Messages::SweepSetup &sweep);
+
     constexpr bool isEOL(char c) const noexcept
     {
         return ((c==10) || (c==13));
@@ -56,5 +60,6 @@ protected:
 
     QueueType &m_queue;
     std::unique_ptr<QSerialPort> m_port;
+    std::thread *m_sweepThread = nullptr;
 };
 

@@ -10,6 +10,7 @@
 #include "messagequeue.h"
 #include "serialctrl.h"
 #include "graph.h"
+#include "tracelist.h"
 
 class MainWindow : public QMainWindow
 {
@@ -25,6 +26,7 @@ public slots:
     void onSweepSetup();
     void onSweepDiode();
     void onSweepVCE();
+    void onSweepBase();
     void onConnect();
     void onDisconnect();
     void onQuit();
@@ -44,21 +46,19 @@ protected:
     QAction *m_saveAction;
     QAction *m_connectAction;
     QAction *m_disconnectAction;
-    QAction *m_sweepTransistorAction;
+    QAction *m_sweepVceAction;
+    QAction *m_sweepVbAction;
     QAction *m_sweepDiodeAction;
     QAction *m_persistanceAction;
     QAction *m_sweepSetupAction;
     QAction *m_clearTracesAction;
     QAction *m_aboutAction;
-
-    QPointF m_lastCurvePoint;
     
     Messages::SweepSetup m_sweepSetup;
-    bool    m_persistance;
+    bool    m_persistance = false;
 
-    Graph *m_graph;
-    QListWidget *m_traceList;
-
+    Graph *m_graph = nullptr;
+    TraceList *m_traceList = nullptr;
     QTimer *m_timer = nullptr;
 
     MessageQueue<Messages::DataPoint> m_traceResults;

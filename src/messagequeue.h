@@ -14,6 +14,7 @@ public:
     // remove copy and move constructor
     MessageQueue(const MessageQueue& queue) = delete;
     MessageQueue(MessageQueue&& queue) = delete;
+    MessageQueue& operator=(const MessageQueue &) = delete;
 
     void push(MessageType &&msg) noexcept
     {

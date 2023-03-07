@@ -481,13 +481,20 @@ void Graph::drawMarkers(QPainter &painter)
 
         // make sure the text is positioned 
         // above the line
-        QPointF txtpos = mAPos;
+        QFontMetricsF fm(font());
+
+        QPointF txtpos = mAPos;        
         if (txtpos.y() > mBPos.y())
         {
             txtpos = mBPos;
-            txtpos.ry() -= 12;
         }
+        
+        txtpos.ry() -= fm.height();
+        painter.drawText(txtpos, txt);
 
+        txt = "Slope = ";
+        txt.append(QString::number(c, 'g',3));
+        txtpos.ry() -= fm.height();
         painter.drawText(txtpos, txt);
 
         painter.setPen(QPen(Qt::white, 3));

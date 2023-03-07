@@ -15,6 +15,7 @@ find_package(Threads)
 set(SRC 
     src/messagequeue.cpp
     src/tracecolors.cpp
+    src/tracelist.cpp
     src/graph.cpp
     src/sweepdialog.cpp
     src/serialportdialog.cpp

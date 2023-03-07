@@ -30,7 +30,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     auto hLayout = new QHBoxLayout();
     mainWidget->setLayout(hLayout);
 
-    m_traceList = new QListWidget();
+    m_traceList = new TraceList();
     connect(m_traceList, SIGNAL(itemSelectionChanged()), this, SLOT(onSelectedTraceChanged()) );
     hLayout->addWidget(m_traceList, 1);
 
@@ -73,9 +73,12 @@ void MainWindow::createActions()
     m_sweepDiodeAction = new QAction("Diode");
     connect(m_sweepDiodeAction, &QAction::triggered, this, &MainWindow::onSweepDiode);
 
-    m_sweepTransistorAction = new QAction("BJT VCE");
-    connect(m_sweepTransistorAction, &QAction::triggered, this, &MainWindow::onSweepVCE);
+    m_sweepVceAction = new QAction("BJT Vce");
+    connect(m_sweepVceAction, &QAction::triggered, this, &MainWindow::onSweepVCE);
     
+    m_sweepVbAction = new QAction("BJT Vb");
+    connect(m_sweepVbAction, &QAction::triggered, this, &MainWindow::onSweepBase);
+
     m_persistanceAction = new QAction("Trace persistance");
     m_persistanceAction->setCheckable(true);
     m_persistanceAction->setChecked(false);
@@ -104,7 +107,8 @@ void MainWindow::createMenus()
     QMenu *sweepMenu = menuBar()->addMenu(tr("Sweep"));
     sweepMenu->addAction(m_sweepSetupAction);
     sweepMenu->addAction(m_sweepDiodeAction);
-    sweepMenu->addAction(m_sweepTransistorAction);
+    sweepMenu->addAction(m_sweepVceAction);
+    sweepMenu->addAction(m_sweepVbAction);
     sweepMenu->addSeparator();
     sweepMenu->addAction(m_clearTracesAction);
     sweepMenu->addAction(m_persistanceAction);
@@ -249,8 +253,33 @@ void MainWindow::onMeasurementTimer()
                 }
             }            
             break;
+        case Messages::SweepType::BJT_Base:
+            // emitter current versus base voltage
+            {
+                QPointF p(msg.m_baseVoltage, msg.m_emitterCurrent);
+                m_graph->addDataPoint(p);
+                if (!msg.m_label.empty())
+                {
+                    m_graph->addLabel(QString().fromStdString(msg.m_label));
+                }
+            }            
+            break;            
         }
     }
+}
+
+void MainWindow::onSweepBase()
+{
+    if (!m_persistance)
+    {
+        m_graph->clearData();
+        m_traceList->clear();
+    }
+
+    m_sweepSetup.m_sweepType = Messages::SweepType::BJT_Base;
+    m_graph->setUnitStrings("Vb V", "Ie A");
+    createNewTrace();
+    m_serial->doSweep(m_sweepSetup);
 }
 
 void MainWindow::onSweepVCE()
@@ -265,14 +294,6 @@ void MainWindow::onSweepVCE()
     m_graph->setUnitStrings("Vce V", "Ie A");
     createNewTrace();
     m_serial->doSweep(m_sweepSetup);
-
-#if 0
-    std::thread t([]()
-    {
-        
-        std::cout << "thread function\n";
-    });    
-#endif
 }
 
 void MainWindow::onSweepDiode()
